@@ -4,6 +4,9 @@ on:
     branches: [main, teaching-synology]
   pull_request:
   workflow_dispatch:
+concurrency:
+  group: teaching-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:

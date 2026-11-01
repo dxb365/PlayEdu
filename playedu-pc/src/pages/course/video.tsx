@@ -81,22 +81,22 @@ const CoursePalyPage = () => {
   };
 
   const getDetail = () => {
-    if (loading) {
-      return true;
-    }
     setLoading(true);
     Course.play(Number(params.courseId), Number(params.hourId))
       .then((res: any) => {
+        if (Number(window.location.pathname.split('/')[2]) !== Number(params.courseId) ||
+            Number(window.location.pathname.split('/')[4]) !== Number(params.hourId)) return;
         setCourse(res.data.course);
         setHour(res.data.hour);
         document.title = res.data.hour.title;
         const record = res.data.user_hour_record;
         const position = res.data.playback_position?.position ??
           (record?.is_finished === 1 ? 0 : record?.finished_duration || 0);
-        const params = { pos: position, maximum: record?.finished_duration || 0,
+        const playback = { courseId: Number(params.courseId), hourId: Number(params.hourId),
+          pos: position, maximum: record?.finished_duration || 0,
           total: res.data.hour.duration, completed: record?.is_finished === 1 };
         setWatchedSeconds(record?.finished_duration || 0);
-        getVideoUrl(res.data.hour.rid, params);
+        getVideoUrl(res.data.hour.rid, playback);
         setLoading(false);
       })
       .catch((e) => {
@@ -107,6 +107,8 @@ const CoursePalyPage = () => {
   const getVideoUrl = (rid: number, data: any) => {
     Course.playUrl(Number(params.courseId), Number(params.hourId)).then(
       (res: any) => {
+        if (Number(window.location.pathname.split('/')[2]) !== data.courseId ||
+            Number(window.location.pathname.split('/')[4]) !== data.hourId) return;
         setResourceUrl(res.data.resource_url[rid]);
         setPlayUrl(res.data.resource_url[rid]);
         initDPlayer(res.data.resource_url[rid], 0, data);
@@ -139,8 +141,8 @@ const CoursePalyPage = () => {
       playbackSpeed: systemConfig.playerIsDisabledSpeed ? [1] : [0.5, 0.75, 1, 1.25, 1.5, 2],
     });
     bindLearningPlayer(window.player, {
-      courseId: Number(window.location.pathname.split('/')[2]),
-      hourId: Number(window.location.pathname.split('/')[4]),
+      courseId: params.courseId,
+      hourId: params.hourId,
       total: params.total, initial: systemConfig.playerAutoResume === false ? 0 : params.pos,
       completed: params.completed ? params.total : params.maximum,
       allowSeek: !systemConfig.playerIsDisabledDrag,
