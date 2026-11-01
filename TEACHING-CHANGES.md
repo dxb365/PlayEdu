@@ -8,7 +8,7 @@
 
 2026-11-01：新增安卓平板客户端、后台暂停保存、APK构建与模拟器验证。
 
-安卓说明见 [安卓平板课堂](playedu-android/README.zh-CN.md)。原生窗口与导航使用 Android WebView，不附带离线视频，不修改上游版权。
+安卓说明见 [安卓平板课堂](https://github.com/dxb365/PlayEdu/blob/android-pad/playedu-android/README.zh-CN.md)。原生窗口与导航使用 Android WebView，不附带离线视频，不修改上游版权。
 
 2026-11-01：新增免费证书自动申请、续期、校验和平滑加载。
 
