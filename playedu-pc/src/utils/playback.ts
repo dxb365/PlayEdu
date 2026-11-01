@@ -69,6 +69,7 @@ export function bindLearningPlayer(player: any, options: Options) {
   const paused = () => { tick(); save(true); };
   const hidden = () => { if (document.visibilityState === 'hidden') save(true); };
   const leaving = () => save(true);
+  const appBackground = () => { tick(); save(true); video.pause(); };
   video.addEventListener('loadedmetadata', restore);
   video.addEventListener('seeking', seeking);
   video.addEventListener('seeked', seeked);
@@ -78,6 +79,7 @@ export function bindLearningPlayer(player: any, options: Options) {
   video.addEventListener('pause', paused);
   document.addEventListener('visibilitychange', hidden);
   window.addEventListener('pagehide', leaving);
+  window.addEventListener('playedu:app-background', appBackground);
   if (video.readyState >= 1) restore();
   const saver = window.setInterval(() => { tick(); if (!video.paused) save(); }, 3000);
   const ping = window.setInterval(() => {
@@ -99,6 +101,7 @@ export function bindLearningPlayer(player: any, options: Options) {
     video.removeEventListener('pause', paused);
     document.removeEventListener('visibilitychange', hidden);
     window.removeEventListener('pagehide', leaving);
+    window.removeEventListener('playedu:app-background', appBackground);
     destroy();
   };
   return player.destroy;

@@ -25,7 +25,7 @@ globalThis.fetch = async (url, init) => {
 };
 const settle = async () => { for(let i=0;i<5;i++) await Promise.resolve(); };
 function setup(overrides={}) {
-    const video = Object.assign(new EventTarget(), { currentTime:0, duration:300, readyState:1, paused:false, ended:false, seeking:false, playbackRate:1 });
+    const video = Object.assign(new EventTarget(), { currentTime:0, duration:300, readyState:1, paused:false, ended:false, seeking:false, playbackRate:1, pause() { this.paused=true; this.dispatchEvent(new Event('pause')); } });
     let destroyed=0;const player={video,destroy(){destroyed++;}};
     const notices=[];
     bindLearningPlayer(player,{courseId:10,hourId:20,total:300,initial:100,completed:100,allowSeek:true,allowSpeed:true,notify:s=>notices.push(s),...overrides});
@@ -50,4 +50,11 @@ assert.ok(t.notices.some(s=>s.includes('暂未同步')),'show a failed save');
 for(const timer of intervals.values())if(timer.ms===3000)timer.fn();await settle();assert.equal(requests.length,2,'retry a failed save');
 t.video.ended=true;t.video.currentTime=300;t.video.dispatchEvent(new Event('ended'));await settle();assert.equal(requests.at(-1).payload.duration,300,'record exact completion');
 t.player.destroy();assert.equal(intervals.size,0);
+t=setup();await settle();requests=[];
+t.video.currentTime=142;window.dispatchEvent(new Event('playedu:app-background'));await settle();
+assert.equal(t.video.paused,true,'pause when the Android app backgrounds');
+assert.equal(requests.at(-1).payload.position,142,'checkpoint before pausing the app');
+assert.equal(requests.at(-1).keepalive,true);
+t.player.destroy();requests=[];window.dispatchEvent(new Event('playedu:app-background'));await settle();
+assert.equal(requests.length,0,'remove native app listener on player destruction');
 console.log('Playback tests passed: resume, rewind, completion, seek/speed independence, retry, cleanup.');

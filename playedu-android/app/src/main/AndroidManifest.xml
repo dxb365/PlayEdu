@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <application android:allowBackup="false" android:usesCleartextTraffic="false"
+        android:hardwareAccelerated="true" android:label="@string/app_name"
+        android:icon="@drawable/ic_classroom" android:roundIcon="@drawable/ic_classroom"
+        android:supportsRtl="true" android:theme="@style/AppTheme">
+        <meta-data android:name="android.webkit.WebView.MetricsOptOut" android:value="true" />
+        <activity android:name=".MainActivity" android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
