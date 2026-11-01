@@ -122,8 +122,10 @@ with tempfile.TemporaryDirectory(prefix='playedu-tls-test-') as folder:
             received+=part
         assert b'classroom-test' in received, 'Reload interrupted an existing connection'
         live.close()
+        installed_mtime=(path/'certs/current/tls.crt').stat().st_mtime_ns
         worker()
         assert current_serial()==second, 'Restart unnecessarily renewed a still-valid certificate'
+        assert (path/'certs/current/tls.crt').stat().st_mtime_ns==installed_mtime, 'Reinstall rewrote the active certificate generation'
         worker(client='/bin/false')
         assert current_serial()==second, 'Failed renewal replaced current certificate'
         good=(path/'certs/current').resolve()
