@@ -6,8 +6,8 @@ map $http_origin $teaching_cors_origin {
 # Teaching customization: TLS uses an exported certificate for the configured domain.
 server {
     listen 8443 ssl;
-    ssl_certificate /etc/teaching/certs/tls.crt;
-    ssl_certificate_key /etc/teaching/certs/tls.key;
+    ssl_certificate /run/teaching-tls/current/tls.crt;
+    ssl_certificate_key /run/teaching-tls/current/tls.key;
     ssl_protocols TLSv1.2 TLSv1.3;
     client_max_body_size 500m;
     location / {
@@ -20,8 +20,8 @@ server {
 }
 server {
     listen 9443 ssl;
-    ssl_certificate /etc/teaching/certs/tls.crt;
-    ssl_certificate_key /etc/teaching/certs/tls.key;
+    ssl_certificate /run/teaching-tls/current/tls.crt;
+    ssl_certificate_key /run/teaching-tls/current/tls.key;
     ssl_protocols TLSv1.2 TLSv1.3;
     client_max_body_size 0;
     # Keep Host and the URI intact: they are covered by the S3 request signature.

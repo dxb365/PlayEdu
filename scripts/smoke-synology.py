@@ -8,9 +8,10 @@ with tempfile.TemporaryDirectory(prefix='playedu-smoke-') as folder:
     for name in ('compose.yaml', 'gateway.conf.template'):
         shutil.copy(root / 'deploy/synology' / name, path / name)
     (path / 'certs').mkdir()
-    subprocess.run(['openssl','req','-x509','-newkey','rsa:2048','-nodes','-days','1','-subj','/CN=localhost','-addext','subjectAltName=DNS:localhost','-keyout',str(path/'certs/tls.key'),'-out',str(path/'certs/tls.crt')],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    subprocess.run(['openssl','req','-x509','-newkey','rsa:2048','-nodes','-days','2','-subj','/CN=localhost','-addext','subjectAltName=DNS:localhost','-keyout',str(path/'certs/tls.key'),'-out',str(path/'certs/tls.crt')],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     (path/'.env').write_text('DOMAIN=localhost\nWEB_HTTPS_PORT=8443\nSTORAGE_HTTPS_PORT=9443\nADMIN_BIND_IP=127.0.0.1\nADMIN_PORT=9900\nDB_PASSWORD=ci-only-database-password\nJWT_SECRET=ci-only-jwt-secret-0000000000000000000000000000000000000000\nSTORAGE_ACCESS_KEY=ci-only-access\nSTORAGE_SECRET_KEY=ci-only-storage-password\n')
-    compose=['docker','compose','--project-name','playedu-smoke','--project-directory',str(path),'-f',str(path/'compose.yaml')]
+    (path/'test-trust.yaml').write_text('services:\n  gateway:\n    environment:\n      TLS_TRUST_BUNDLE: /etc/teaching/certs/tls.crt\n')
+    compose=['docker','compose','--project-name','playedu-smoke','--project-directory',str(path),'-f',str(path/'compose.yaml'),'-f',str(path/'test-trust.yaml')]
     subprocess.run(compose+['config','--quiet'],check=True)
     try:
         subprocess.run(compose+['up','-d'],check=True)

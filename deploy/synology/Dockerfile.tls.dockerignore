@@ -1,0 +1,10 @@
+.git
+**/node_modules
+**/target
+**/dist
+**/certs
+**/acme-state
+**/acme-config
+**/.env
+**/acme.env
+**/*.log

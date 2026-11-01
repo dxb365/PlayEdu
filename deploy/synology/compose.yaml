@@ -66,8 +66,25 @@ services:
     depends_on:
       - api
     logging: *logging
+  certificate-manager:
+    image: playedu-teaching-acme:local
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:-www.5927.fun}
+      AUTO_UPGRADE: '0'
+    volumes:
+      - ./acme-config:/run/acme-config:ro
+      - ./acme-state:/acme.sh
+      - ./certs:/certs
+    healthcheck:
+      test: ["CMD-SHELL", "openssl x509 -in /certs/current/tls.crt -noout -checkend 604800 >/dev/null 2>&1"]
+      interval: 1h
+      timeout: 10s
+      start_period: 20m
+      retries: 2
+    logging: *logging
   gateway:
-    image: nginx:1.28-alpine
+    image: playedu-teaching-gateway:local
     restart: unless-stopped
     environment:
       DOMAIN: ${DOMAIN:-www.5927.fun}
