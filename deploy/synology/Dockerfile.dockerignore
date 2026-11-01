@@ -7,3 +7,7 @@
 **/storage
 **/*.log
 **/__pycache__
+
+**/acme-config
+**/acme-state
+**/acme.env

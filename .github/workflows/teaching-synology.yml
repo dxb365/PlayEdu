@@ -1,7 +1,7 @@
 name: Build teaching site for Synology
 on:
   push:
-    branches: [main, teaching-synology]
+    branches: [main, teaching-synology, teaching-auto-tls]
   pull_request:
   workflow_dispatch:
 concurrency:
@@ -10,8 +10,31 @@ concurrency:
 permissions:
   contents: read
 jobs:
+  certificates:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build certificate services
+        run: |
+          docker build -f deploy/synology/Dockerfile.tls --target gateway -t playedu-teaching-gateway:local .
+          docker build -f deploy/synology/Dockerfile.tls --target acme -t playedu-teaching-acme:local .
+      - name: Exercise ACME issuance, renewal and live certificate reload
+        run: sudo python3 scripts/smoke-auto-tls.py
+      - name: Package certificate upgrade
+        run: |
+          mkdir -p auto-tls-upgrade
+          cp deploy/synology/compose.yaml deploy/synology/gateway.conf.template deploy/synology/acme.env.example deploy/synology/aliyun-dns-policy.json deploy/synology/AUTO-TLS.zh-CN.md deploy/synology/setup-auto-certificate.html auto-tls-upgrade/
+          printf '%s\n' "Source commit: ${{ github.sha }}" > auto-tls-upgrade/BUILD.txt
+          docker save playedu-teaching-gateway:local playedu-teaching-acme:local | gzip > auto-tls-upgrade/auto-tls-images.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: playedu-auto-tls-upgrade
+          path: auto-tls-upgrade/
+          retention-days: 14
   build:
-    runs-on: ubuntu-latest
+    needs: certificates
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
@@ -39,13 +62,18 @@ jobs:
         run: |
           chmod +x mvnw
           ./mvnw -B test package
+      - uses: actions/download-artifact@v4
+        with:
+          name: playedu-auto-tls-upgrade
+          path: auto-tls-upgrade/
+      - name: Load tested certificate services
+        run: docker load -i auto-tls-upgrade/auto-tls-images.tar.gz
       - name: Build NAS images
         run: |
           docker build -f deploy/synology/Dockerfile --target api -t playedu-teaching-api:local .
           docker build -f deploy/synology/Dockerfile --target web -t playedu-teaching-web:local .
           docker pull mysql:8.4
           docker pull chrislusf/seaweedfs:4.51
-          docker pull nginx:1.28-alpine
       - name: Verify container startup, TLS and private video storage
         run: |
           python -m pip install boto3
@@ -55,9 +83,9 @@ jobs:
         run: |
           mkdir -p synology-bundle
           cp deploy/synology/compose.yaml deploy/synology/gateway.conf.template deploy/synology/prepare.sh deploy/synology/README.zh-CN.md synology-bundle/
-          cp deploy/synology/.env.example synology-bundle/
+          cp deploy/synology/.env.example deploy/synology/acme.env.example deploy/synology/aliyun-dns-policy.json deploy/synology/AUTO-TLS.zh-CN.md deploy/synology/setup-auto-certificate.html synology-bundle/
           printf '%s\n' "Source commit: ${{ github.sha }}" > synology-bundle/BUILD.txt
-          docker save playedu-teaching-api:local playedu-teaching-web:local mysql:8.4 chrislusf/seaweedfs:4.51 nginx:1.28-alpine | gzip > synology-bundle/images.tar.gz
+          docker save playedu-teaching-api:local playedu-teaching-web:local mysql:8.4 chrislusf/seaweedfs:4.51 playedu-teaching-gateway:local playedu-teaching-acme:local | gzip > synology-bundle/images.tar.gz
       - uses: actions/upload-artifact@v4
         if: github.event_name != 'pull_request'
         with:

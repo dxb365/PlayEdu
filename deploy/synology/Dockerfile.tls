@@ -1,0 +1,11 @@
+FROM ghcr.io/acmesh-official/acme.sh:3.1.6 AS acme
+ENV AUTO_UPGRADE=0
+COPY deploy/synology/tls/ /opt/teaching/
+RUN chmod 755 /opt/teaching/*.sh
+ENTRYPOINT ["/bin/sh", "/opt/teaching/cert-manager.sh"]
+
+FROM nginx:1.28-alpine AS gateway
+RUN apk add --no-cache openssl ca-certificates
+COPY deploy/synology/tls/validate-certificate.sh deploy/synology/tls/gateway-entrypoint.sh /opt/teaching/
+RUN chmod 755 /opt/teaching/*.sh
+ENTRYPOINT ["/bin/sh", "/opt/teaching/gateway-entrypoint.sh"]

@@ -9,5 +9,5 @@ printf 'DB_PASSWORD=%s\n' "$(openssl rand -hex 24)" >> .env
 printf 'JWT_SECRET=%s\n' "$(openssl rand -hex 48)" >> .env
 printf 'STORAGE_ACCESS_KEY=%s\n' "$(openssl rand -hex 16)" >> .env
 printf 'STORAGE_SECRET_KEY=%s\n' "$(openssl rand -hex 32)" >> .env
-mkdir -p certs mysql storage
-printf '%s\n' 'Generated .env. Set ADMIN_BIND_IP to the NAS LAN IP, then add the domain TLS certificate to certs/ before starting.'
+mkdir -p certs mysql storage acme-config acme-state
+printf '%s\n' 'Generated .env. Set ADMIN_BIND_IP to the NAS LAN IP, then follow AUTO-TLS.zh-CN.md to configure automatic certificates.'

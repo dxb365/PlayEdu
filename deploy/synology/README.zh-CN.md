@@ -30,10 +30,10 @@
 
 1. 在群晖套件中心安装 Container Manager（若已有则直接使用）。
 2. 在 File Station 新建独立目录，例如 docker/playedu-teaching，把解压后的部署文件放入该目录。
-3. 导入 images.tar.gz 中的镜像。可在 Container Manager“映像 → 新增 → 从文件新增”导入；若 DSM 不支持此多镜像压缩包，使用已授权的 SSH 执行 docker load -i images.tar.gz。
+3. 导入 images.tar.gz 中的镜像。可在 Container Manager“映像 → 操作 → 导入 → 从文件添加”导入；若 DSM 不支持此多镜像压缩包，使用已授权的 SSH 执行 docker load -i images.tar.gz。
 4. 在该目录运行 sh prepare.sh，生成只存放在群晖上的 .env。若不使用 SSH，可复制 .env.example 为 .env，在本地填入独立随机密码。不要把 .env 发到聊天或上传 GitHub。
 5. 把 .env 中 ADMIN_BIND_IP 改为群晖的局域网 IP。数据库、视频密钥与 JWT 密钥保持独立；其他端口若修改，路由器映射须同步修改。
-6. 准备与 www.5927.fun 匹配且未过期的 TLS 证书，放在 certs/tls.crt 与 certs/tls.key。tls.crt 必须包含完整证书链。可从群晖“控制面板 → 安全性 → 证书”导出已有证书；这些文件仅保存在群晖，不上传 GitHub。使用默认端口以外的证书服务需支持 DNS 验证；80/443 不通时不要使用 HTTP 验证。
+6. 使用免费的证书自动申请和续期：按 [自动证书设置](AUTO-TLS.zh-CN.md) 一次性填写阿里云专用密钥并启动证书容器，不用手工导出、改名或定期更换证书。旧的有效证书可继续保留。
 7. 在 Container Manager“项目 → 新增”，选该目录和 compose.yaml，启动项目。首次启动会初始化数据库、空的 videos 存储桶和学习位置表。
 8. 在局域网打开管理后台。上游初始账号 admin@playedu.xyz，初始密码 playedu；首次登录后立即修改，再添加教师/学员账号和测试课程。
 9. 后台 S3 配置应已从本机 .env 填入：Endpoint https://www.5927.fun:9443、Bucket videos、Region us-east-1。视频存储采用 S3 兼容的 SeaweedFS；不设置公共读取权限。
@@ -49,7 +49,7 @@
 
 ## 备份与升级
 
-备份 mysql、storage、.env 和 certs；视频文件存在 storage，账号与学习记录存在 mysql。升级前做一致性备份（停止项目后备份，或用数据库转储及存储快照）；请勿删除或重建数据目录。保留旧镜像用于回滚。新增播放位置表不修改原有完成进度，但旧版本不会读取新增位置。
+备份 mysql、storage、.env、certs、acme-config 和 acme-state；视频文件存在 storage，账号与学习记录存在 mysql。升级前做一致性备份（停止项目后备份，或用数据库转储及存储快照）；请勿删除或重建数据目录。保留旧镜像用于回滚。新增播放位置表不修改原有完成进度，但旧版本不会读取新增位置。
 
 ## 当前限制
 

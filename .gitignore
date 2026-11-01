@@ -9,3 +9,6 @@
 **/target/
 *.tar.gz
 *.zip
+**/acme-config/
+**/acme-state/
+**/acme.env
