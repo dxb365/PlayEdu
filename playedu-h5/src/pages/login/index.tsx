@@ -105,6 +105,8 @@ const LoginPage = () => {
           configRes.data["player-disabled-drag"] === "1"
             ? true
             : false,
+        playerIsDisabledSpeed: configRes.data["player-disabled-speed"] === "1",
+        playerAutoResume: configRes.data["player-auto-resume"] !== "0",
         playerBulletSecretText: configRes.data["player-bullet-secret-text"],
         playerBulletSecretColor: configRes.data["player-bullet-secret-color"],
         playerBulletSecretOpacity:

@@ -1,0 +1,86 @@
+# Teaching customization. Run this file from an independent Container Manager project folder.
+name: playedu-teaching
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '3'
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: playedu
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?Generate .env first}
+      TZ: Asia/Shanghai
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - ./mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    logging: *logging
+  storage:
+    image: chrislusf/seaweedfs:4.51
+    restart: unless-stopped
+    command: ["mini", "-dir=/data", "-ip.bind=0.0.0.0"]
+    environment:
+      AWS_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY:?Generate .env first}
+      AWS_SECRET_ACCESS_KEY: ${STORAGE_SECRET_KEY:?Generate .env first}
+      S3_BUCKET: videos
+    volumes:
+      - ./storage:/data
+    logging: *logging
+  api:
+    image: playedu-teaching-api:local
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: '3306'
+      DB_NAME: playedu
+      DB_USER: root
+      DB_PASS: ${DB_PASSWORD:?Generate .env first}
+      SA_TOKEN_JWT_SECRET_KEY: ${JWT_SECRET:?Generate .env first}
+      JAVA_TOOL_OPTIONS: '-Xms256m -Xmx1024m'
+      TZ: Asia/Shanghai
+      TEACHING_S3_INTERNAL_ENDPOINT: http://storage:8333
+      TEACHING_S3_PUBLIC_ENDPOINT: https://${DOMAIN:-www.5927.fun}:${STORAGE_HTTPS_PORT:-9443}
+      TEACHING_S3_PATH_STYLE: 'true'
+      TEACHING_S3_ACCESS_KEY: ${STORAGE_ACCESS_KEY:?Generate .env first}
+      TEACHING_S3_SECRET_KEY: ${STORAGE_SECRET_KEY:?Generate .env first}
+      TEACHING_S3_BUCKET: videos
+      TEACHING_S3_REGION: us-east-1
+    depends_on:
+      db:
+        condition: service_healthy
+      storage:
+        condition: service_started
+    logging: *logging
+  web:
+    image: playedu-teaching-web:local
+    restart: unless-stopped
+    ports:
+      - '${ADMIN_BIND_IP:-127.0.0.1}:${ADMIN_PORT:-9900}:8081'
+    depends_on:
+      - api
+    logging: *logging
+  gateway:
+    image: nginx:1.28-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:-www.5927.fun}
+      WEB_HTTPS_PORT: ${WEB_HTTPS_PORT:-8443}
+      ADMIN_BIND_IP: ${ADMIN_BIND_IP:-127.0.0.1}
+      ADMIN_PORT: ${ADMIN_PORT:-9900}
+    ports:
+      - '${WEB_HTTPS_PORT:-8443}:8443'
+      - '${STORAGE_HTTPS_PORT:-9443}:9443'
+    volumes:
+      - ./gateway.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs:/etc/teaching/certs:ro
+    depends_on:
+      - web
+      - storage
+    logging: *logging

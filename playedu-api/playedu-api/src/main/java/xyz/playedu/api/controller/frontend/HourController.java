@@ -49,6 +49,9 @@ import xyz.playedu.resource.service.ResourceService;
 @RequestMapping("/api/v1/course/{courseId}/hour")
 public class HourController {
 
+    // Teaching customization: persist the latest cursor as well as completion.
+    @Autowired private xyz.playedu.api.service.PlaybackPositionService positions;
+
     @Autowired private CourseService courseService;
 
     @Autowired private CourseHourService hourService;
@@ -84,6 +87,7 @@ public class HourController {
         data.put("course", course);
         data.put("hour", courseHour);
         data.put("user_hour_record", userCourseHourRecord);
+        data.put("playback_position", positions.find(FCtx.getId(), courseId, id));
 
         return JsonResponse.data(data);
     }
@@ -138,6 +142,11 @@ public class HourController {
             boolean isFinished =
                     userCourseHourRecordService.storeOrUpdate(
                             FCtx.getId(), courseId, hour.getId(), duration, hour.getDuration());
+            if (req.getPosition() != null && req.getClientId() != null && req.getSequence() != null) {
+                positions.save(FCtx.getId(), courseId, id,
+                        Math.max(0, Math.min(req.getPosition(), hour.getDuration())),
+                        req.getClientId(), req.getSequence());
+            }
             if (isFinished) {
                 ctx.publishEvent(
                         new UserCourseHourFinishedEvent(

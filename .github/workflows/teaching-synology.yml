@@ -1,0 +1,64 @@
+name: Build teaching site for Synology
+on:
+  push:
+    branches: [main, teaching-synology]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Build desktop, mobile and admin interfaces
+        env:
+          VITE_APP_URL: /api/
+        run: |
+          npx --yes pnpm@8.15.9 --dir playedu-pc install --frozen-lockfile
+          npx --yes pnpm@9.15.9 --dir playedu-h5 install --frozen-lockfile
+          npx --yes pnpm@9.15.9 --dir playedu-admin install --frozen-lockfile
+          node scripts/test-playback.mjs
+          npx --yes pnpm@8.15.9 --dir playedu-pc build
+          npx --yes pnpm@9.15.9 --dir playedu-h5 build
+          npx --yes pnpm@9.15.9 --dir playedu-admin build
+      - name: Test and package backend
+        working-directory: playedu-api
+        run: |
+          chmod +x mvnw
+          ./mvnw -B test package
+      - name: Build NAS images
+        run: |
+          docker build -f deploy/synology/Dockerfile --target api -t playedu-teaching-api:local .
+          docker build -f deploy/synology/Dockerfile --target web -t playedu-teaching-web:local .
+          docker pull mysql:8.4
+          docker pull chrislusf/seaweedfs:4.51
+          docker pull nginx:1.28-alpine
+      - name: Verify container startup, TLS and private video storage
+        run: |
+          python -m pip install boto3
+          python scripts/smoke-synology.py
+      - name: Create importable Synology bundle
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        run: |
+          mkdir -p synology-bundle
+          cp deploy/synology/compose.yaml deploy/synology/gateway.conf.template deploy/synology/prepare.sh deploy/synology/README.zh-CN.md synology-bundle/
+          cp deploy/synology/.env.example synology-bundle/
+          printf '%s\n' "Source commit: ${{ github.sha }}" > synology-bundle/BUILD.txt
+          docker save playedu-teaching-api:local playedu-teaching-web:local mysql:8.4 chrislusf/seaweedfs:4.51 nginx:1.28-alpine | gzip > synology-bundle/images.tar.gz
+      - uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        with:
+          name: playedu-synology
+          path: synology-bundle/
+          include-hidden-files: true
+          retention-days: 3

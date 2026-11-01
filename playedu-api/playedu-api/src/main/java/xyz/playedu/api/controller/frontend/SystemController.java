@@ -52,6 +52,9 @@ public class SystemController {
         data.put("player-bullet-secret-color", configs.get("player.bullet_secret_color"));
         data.put("player-bullet-secret-opacity", configs.get("player.bullet_secret_opacity"));
         data.put("player-disabled-drag", configs.get("player.disabled_drag"));
+        // Teaching customization: separate controls for seeking, speed and resume.
+        data.put("player-disabled-speed", configs.getOrDefault("player.disabled_speed", "0"));
+        data.put("player-auto-resume", configs.getOrDefault("player.auto_resume", "1"));
 
         data.put("ldap-enabled", configs.get(ConfigConstant.LDAP_ENABLED));
 

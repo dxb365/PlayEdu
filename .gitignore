@@ -1,3 +1,11 @@
 .DS_Store
 *.log
 .env
+**/certs/*
+**/mysql/
+**/storage/
+**/node_modules/
+**/dist/
+**/target/
+*.tar.gz
+*.zip

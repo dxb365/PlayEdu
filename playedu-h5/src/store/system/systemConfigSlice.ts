@@ -10,6 +10,8 @@ type SystemConfigStoreInterface = {
   playerPoster: string;
   playerIsEnabledBulletSecret: boolean;
   playerIsDisabledDrag: boolean;
+  playerIsDisabledSpeed?: boolean;
+  playerAutoResume?: boolean;
   playerBulletSecretText: string;
   playerBulletSecretColor: string;
   playerBulletSecretOpacity: string;

@@ -43,6 +43,8 @@ export const InitPage = (props: Props) => {
           props.configData["player-disabled-drag"] === "1"
             ? true
             : false,
+        playerIsDisabledSpeed: props.configData["player-disabled-speed"] === "1",
+        playerAutoResume: props.configData["player-auto-resume"] !== "0",
         playerBulletSecretText: props.configData["player-bullet-secret-text"],
         playerBulletSecretColor: props.configData["player-bullet-secret-color"],
         playerBulletSecretOpacity:

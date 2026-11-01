@@ -1,0 +1,46 @@
+map $http_origin $teaching_cors_origin {
+    default '';
+    "https://${DOMAIN}:${WEB_HTTPS_PORT}" $http_origin;
+    "http://${ADMIN_BIND_IP}:${ADMIN_PORT}" $http_origin;
+}
+# Teaching customization: TLS uses an exported certificate for the configured domain.
+server {
+    listen 8443 ssl;
+    ssl_certificate /etc/teaching/certs/tls.crt;
+    ssl_certificate_key /etc/teaching/certs/tls.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    client_max_body_size 500m;
+    location / {
+        proxy_pass http://web:8080;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 300s;
+    }
+}
+server {
+    listen 9443 ssl;
+    ssl_certificate /etc/teaching/certs/tls.crt;
+    ssl_certificate_key /etc/teaching/certs/tls.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    client_max_body_size 0;
+    # Keep Host and the URI intact: they are covered by the S3 request signature.
+    location / {
+        if ($request_method = OPTIONS) { return 204; }
+        proxy_pass http://storage:8333;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header Connection '';
+        proxy_request_buffering off;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_hide_header Access-Control-Allow-Origin;
+        proxy_hide_header Access-Control-Allow-Headers;
+        proxy_hide_header Access-Control-Allow-Methods;
+        proxy_hide_header Access-Control-Expose-Headers;
+        add_header Access-Control-Allow-Origin $teaching_cors_origin always;
+        add_header Access-Control-Allow-Methods 'GET, HEAD, PUT, POST, DELETE, OPTIONS' always;
+        add_header Access-Control-Allow-Headers 'Content-Type, Authorization, Range, x-amz-date, x-amz-content-sha256, x-amz-security-token' always;
+        add_header Access-Control-Expose-Headers 'ETag, Content-Length, Content-Range, Accept-Ranges' always;
+    }
+}

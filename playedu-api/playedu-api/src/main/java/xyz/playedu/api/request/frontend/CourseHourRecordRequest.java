@@ -27,4 +27,9 @@ import lombok.Data;
 public class CourseHourRecordRequest {
     @NotNull(message = "duration参数不存在")
     private Integer duration;
+
+    // Teaching customization: independent resume cursor and request ordering.
+    private Integer position;
+    private String clientId;
+    private Long sequence;
 }

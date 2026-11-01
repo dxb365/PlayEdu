@@ -38,11 +38,11 @@ export const HourCompenent: React.FC<PropInterface> = ({
         <div className="d-flex">
           {progress >= 0 && progress < 100 && (
             <>
-              {progress === 0 && <div className={styles["link"]}>开始学习</div>}
+              {progress === 0 && <div className={styles["link"]}>未学习 · 开始学习</div>}
               {progress !== 0 && (
                 <>
                   <div className={styles["record"]}>
-                    上次学习到
+                    学习中 · 上次学习到
                     {durationFormat(Number(record.finished_duration || 0))}
                   </div>
                   <div className={styles["link"]}>继续学习</div>

@@ -1,3 +1,5 @@
+// Teaching customization (2026-11-01): automatic resume and independent playback controls.
+import { bindLearningPlayer } from "../../utils/playback";
 import { useEffect, useRef, useState } from "react";
 import styles from "./video.module.scss";
 import { useParams, useNavigate } from "react-router-dom";
@@ -16,7 +18,6 @@ const CoursePalyPage = () => {
   const systemConfig = useSelector((state: any) => state.systemConfig.value);
   const user = useSelector((state: any) => state.loginUser.value.user);
   const [playUrl, setPlayUrl] = useState("");
-  const [playDuration, setPlayDuration] = useState(0);
   const [playendedStatus, setPlayendedStatus] = useState(false);
   const [lastSeeValue, setLastSeeValue] = useState({});
   const [course, setCourse] = useState<CourseModel | null>(null);
@@ -27,7 +28,6 @@ const CoursePalyPage = () => {
   const [playingTime, setPlayingTime] = useState(0);
   const [watchedSeconds, setWatchedSeconds] = useState(0);
   const [resourceUrl, setResourceUrl] = useState<ResourceUrlModel>({});
-  const myRef = useRef(0);
   const playRef = useRef(0);
   const watchRef = useRef(0);
   const totalRef = useRef(0);
@@ -35,16 +35,15 @@ const CoursePalyPage = () => {
 
   useEffect(() => {
     timer && clearInterval(timer);
+    window.player && window.player.destroy();
+    setPlayendedStatus(false);
     getCourse();
     getDetail();
     return () => {
       timer && clearInterval(timer);
+      window.player && window.player.destroy();
     };
   }, [params.courseId, params.hourId]);
-
-  useEffect(() => {
-    myRef.current = playDuration;
-  }, [playDuration]);
 
   useEffect(() => {
     playRef.current = playingTime;
@@ -77,9 +76,7 @@ const CoursePalyPage = () => {
       const index = totalHours.findIndex(
         (i: any) => i.id === Number(params.hourId)
       );
-      if (index === totalHours.length - 1) {
-        setIsLastpage(true);
-      }
+      setIsLastpage(index === totalHours.length - 1);
     });
   };
 
@@ -93,19 +90,12 @@ const CoursePalyPage = () => {
         setCourse(res.data.course);
         setHour(res.data.hour);
         document.title = res.data.hour.title;
-        let record: HourRecordModel = res.data.user_hour_record;
-        let params = null;
-        if (record && record.finished_duration && record.is_finished === 0) {
-          params = {
-            time: 5,
-            pos: record.finished_duration,
-          };
-          setLastSeeValue(params);
-          setLastSeeValue(params);
-          setWatchedSeconds(record.finished_duration);
-        } else if (record && record.is_finished === 1) {
-          setWatchedSeconds(res.data.hour.duration);
-        }
+        const record = res.data.user_hour_record;
+        const position = res.data.playback_position?.position ??
+          (record?.is_finished === 1 ? 0 : record?.finished_duration || 0);
+        const params = { pos: position, maximum: record?.finished_duration || 0,
+          total: res.data.hour.duration, completed: record?.is_finished === 1 };
+        setWatchedSeconds(record?.finished_duration || 0);
         getVideoUrl(res.data.hour.rid, params);
         setLoading(false);
       })
@@ -126,10 +116,7 @@ const CoursePalyPage = () => {
   };
 
   const initDPlayer = (playUrl: string, isTrySee: number, params: any) => {
-    let banDrag =
-      systemConfig.playerIsDisabledDrag &&
-      watchRef.current < totalRef.current &&
-      watchRef.current === 0;
+    const banDrag = !!systemConfig.playerIsDisabledDrag;
     window.player = new window.DPlayer({
       container: document.getElementById("meedu-player-container"),
       autoplay: false,
@@ -149,55 +136,24 @@ const CoursePalyPage = () => {
         opacity: Number(systemConfig.playerBulletSecretOpacity),
       },
       ban_drag: banDrag,
-      last_see_pos: params,
+      playbackSpeed: systemConfig.playerIsDisabledSpeed ? [1] : [0.5, 0.75, 1, 1.25, 1.5, 2],
     });
-    // 监听播放进度更新evt
-    window.player.on("timeupdate", () => {
-      let currentTime = parseInt(window.player.video.currentTime);
-      if (
-        systemConfig.playerIsDisabledDrag &&
-        watchRef.current < totalRef.current &&
-        currentTime - playRef.current >= 2 &&
-        currentTime > watchRef.current
-      ) {
-        message.warning("首次学习禁止快进");
-        window.player.seek(watchRef.current);
-      } else {
-        setPlayingTime(currentTime);
-        playTimeUpdate(parseInt(window.player.video.currentTime), false);
-      }
+    bindLearningPlayer(window.player, {
+      courseId: Number(window.location.pathname.split('/')[2]),
+      hourId: Number(window.location.pathname.split('/')[4]),
+      total: params.total, initial: systemConfig.playerAutoResume === false ? 0 : params.pos,
+      completed: params.completed ? params.total : params.maximum,
+      allowSeek: !systemConfig.playerIsDisabledDrag,
+      allowSpeed: !systemConfig.playerIsDisabledSpeed,
+      notify: (text) => message.warning(text),
     });
-    window.player.on("ended", () => {
-      if (
-        systemConfig.playerIsDisabledDrag &&
-        watchRef.current < totalRef.current &&
-        window.player.video.duration - playRef.current >= 2
-      ) {
-        window.player.seek(playRef.current);
-        return;
-      }
-      setPlayingTime(0);
+    window.player.on('ended', () => {
       setPlayendedStatus(true);
-      playTimeUpdate(parseInt(window.player.video.currentTime), true);
+      setPlayingTime(0);
       exitFullscreen();
-      window.player && window.player.destroy();
     });
     setLoading(false);
     checkPlayer();
-  };
-
-  const playTimeUpdate = (duration: number, isEnd: boolean) => {
-    if (duration - myRef.current >= 10 || isEnd === true) {
-      setPlayDuration(duration);
-      Course.record(
-        Number(params.courseId),
-        Number(params.hourId),
-        duration
-      ).then((res: any) => {});
-      Course.playPing(Number(params.courseId), Number(params.hourId)).then(
-        (res: any) => {}
-      );
-    }
   };
 
   const checkPlayer = () => {

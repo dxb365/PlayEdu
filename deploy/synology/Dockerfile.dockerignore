@@ -1,0 +1,9 @@
+# This runtime build must include the compiled JAR and frontend dist directories.
+.git
+**/node_modules
+**/.env*
+**/certs
+**/mysql
+**/storage
+**/*.log
+**/__pycache__

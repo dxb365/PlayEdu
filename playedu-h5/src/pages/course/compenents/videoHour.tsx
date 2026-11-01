@@ -47,6 +47,7 @@ export const HourCompenent: React.FC<PropInterface> = ({
               <span>学习中</span>
             </div>
           )}
+          {vid !== id && userProgress === 0 && <div className={styles["studying"]}>未学习</div>}
           {vid !== id && userProgress > 0 && userProgress < 100 && (
             <div className={styles["studying"]}>
               <span>

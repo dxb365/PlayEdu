@@ -65,7 +65,17 @@ public class S3Util {
     }
 
     @SneakyThrows
+    // Teaching customization: internal S3 traffic stays on the container network.
     private AmazonS3 getClient() {
+        String internal = System.getenv("TEACHING_S3_INTERNAL_ENDPOINT");
+        return createClient(StringUtil.isNotEmpty(internal) ? internal : defaultConfig.getEndpoint(), true);
+    }
+
+    private AmazonS3 publicClient() {
+        return createClient(defaultConfig.getEndpoint(), false);
+    }
+
+    private AmazonS3 createClient(String endpoint, boolean validateBucket) {
         if (defaultConfig == null) {
             throw new ServiceException("存储服务未配置");
         }
@@ -74,14 +84,19 @@ public class S3Util {
 
         AwsClientBuilder.EndpointConfiguration endpointConfiguration =
                 new AwsClientBuilder.EndpointConfiguration(
-                        defaultConfig.getEndpoint(), defaultConfig.getRegion());
+                        endpoint, defaultConfig.getRegion());
 
         AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
+        if ("true".equals(System.getenv("TEACHING_S3_PATH_STYLE"))) {
+            builder.withPathStyleAccessEnabled(true);
+        }
 
         AmazonS3 client =
                 builder.withCredentials(new AWSStaticCredentialsProvider(credentials))
                         .withEndpointConfiguration(endpointConfiguration)
                         .build();
+
+        if (!validateBucket) return client;
 
         // 检查bucket是否存在
         if (client.doesBucketExistV2(defaultConfig.getBucket())) {
@@ -178,7 +193,7 @@ public class S3Util {
         request.setExpiration(new Date(System.currentTimeMillis() + 3600 * 1000)); // 一个小时有效期
         request.addRequestParameter("partNumber", partNumber); // 分块索引
         request.addRequestParameter("uploadId", uploadId); // uploadId
-        return getClient().generatePresignedUrl(request).toString();
+        return publicClient().generatePresignedUrl(request).toString();
     }
 
     @SneakyThrows
@@ -248,6 +263,6 @@ public class S3Util {
             request.setResponseHeaders(responseHeaders);
         }
 
-        return getClient().generatePresignedUrl(request).toString();
+        return publicClient().generatePresignedUrl(request).toString();
     }
 }

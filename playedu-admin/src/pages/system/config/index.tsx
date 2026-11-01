@@ -45,9 +45,13 @@ const SystemConfigPage = () => {
   const getDetail = () => {
     appConfig.appConfig().then((res: any) => {
       setResourceUrl(res.data.resource_url);
+      // Teaching customization: load independent speed and resume switches.
+      form.setFieldsValue({ "player.disabled_speed": false, "player.auto_resume": true });
       let configData = res.data.app_config;
       for (let i = 0; i < configData.length; i++) {
-        if (configData[i].key_name === "system.name") {
+        if (["player.disabled_speed", "player.auto_resume"].includes(configData[i].key_name)) {
+          form.setFieldsValue({ [configData[i].key_name]: configData[i].key_value === "1" });
+        } else if (configData[i].key_name === "system.name") {
           form.setFieldsValue({
             "system.name": configData[i].key_value,
           });
@@ -242,6 +246,9 @@ const SystemConfigPage = () => {
     setLoading(true);
     values["player.bullet_secret_opacity"] =
       values["player.bullet_secret_opacity"] / 100;
+    for (const key of ["player.disabled_speed", "player.auto_resume"]) {
+      if (values[key] !== undefined) values[key] = values[key] ? "1" : "0";
+    }
     appConfig.saveAppConfig(values).then((res: any) => {
       message.success("保存成功！");
       setLoading(false);
@@ -407,9 +414,16 @@ const SystemConfigPage = () => {
                 <Switch onChange={onDragChange} />
               </Form.Item>
               <div className="helper-text">
-                （打开后禁止学员在首次学习中拖动进度条，以防刷课）
+                （打开后禁止手动跳转播放位置；自动续播仍然可用）
               </div>
             </Space>
+          </Form.Item>
+          {/* Teaching customization: speed and seeking are controlled separately. */}
+          <Form.Item label="禁止倍速播放" name="player.disabled_speed" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          <Form.Item label="自动恢复上次学习" name="player.auto_resume" valuePropName="checked">
+            <Switch />
           </Form.Item>
           <Form.Item style={{ marginBottom: 30 }} label="播放器跑马灯">
             <Space align="baseline" style={{ height: 32 }}>
