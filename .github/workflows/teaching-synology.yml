@@ -51,7 +51,7 @@ jobs:
           python -m pip install boto3
           python scripts/smoke-synology.py
       - name: Create importable Synology bundle
-        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         run: |
           mkdir -p synology-bundle
           cp deploy/synology/compose.yaml deploy/synology/gateway.conf.template deploy/synology/prepare.sh deploy/synology/README.zh-CN.md synology-bundle/
@@ -59,7 +59,7 @@ jobs:
           printf '%s\n' "Source commit: ${{ github.sha }}" > synology-bundle/BUILD.txt
           docker save playedu-teaching-api:local playedu-teaching-web:local mysql:8.4 chrislusf/seaweedfs:4.51 nginx:1.28-alpine | gzip > synology-bundle/images.tar.gz
       - uses: actions/upload-artifact@v4
-        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         with:
           name: playedu-synology
           path: synology-bundle/
