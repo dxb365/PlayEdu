@@ -57,3 +57,7 @@ with tempfile.TemporaryDirectory(prefix='playedu-smoke-') as folder:
         raise
     finally:
         subprocess.run(compose+['down'],check=False)
+        # Container-created files are root-owned; restore only this known temporary directory.
+        if path.parent.resolve() != pathlib.Path(tempfile.gettempdir()).resolve() or not path.name.startswith('playedu-smoke-'):
+            raise RuntimeError('Unexpected smoke-test directory')
+        subprocess.run(['sudo','chown','-R',str(os.getuid())+':'+str(os.getgid()),str(path)],check=True)
