@@ -43,7 +43,7 @@ public class PlaybackController {
                 access.check(FCtx.getId(),courseId,true);
                 hours.findOrFail(hourId,courseId);
                 return JsonResponse.data(row);
-            } catch (ServiceException ignored) {
+            } catch (ServiceException | xyz.playedu.common.exception.NotFoundException ignored) {
                 // A deleted/withdrawn course must not prevent opening the site.
             }
         }
