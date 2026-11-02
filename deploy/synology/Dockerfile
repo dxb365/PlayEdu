@@ -1,5 +1,6 @@
 # Teaching customization: build application artifacts in CI, run small containers on the NAS.
 FROM eclipse-temurin:17-jre-jammy AS api
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY playedu-api/playedu-api/target/playedu-api.jar /app/app.jar
 EXPOSE 9898

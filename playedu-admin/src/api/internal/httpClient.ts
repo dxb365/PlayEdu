@@ -67,7 +67,7 @@ export class HttpClient {
       },
       // 当http的状态码非0
       (error) => {
-        let status = error.response.status;
+        let status = error.response?.status;
         if (status === 401) {
           message.error("请重新登录");
           GoLogin();
@@ -86,7 +86,7 @@ export class HttpClient {
         } else {
           GoError(status);
         }
-        return Promise.reject(error.response);
+        return Promise.reject(error.response || error);
       }
     );
   }

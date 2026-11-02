@@ -21,6 +21,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import xyz.playedu.resource.media.NasVideoStorage;
 
 @Configuration
 @Slf4j
@@ -31,6 +32,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Autowired private FrontInterceptor frontInterceptor;
 
     @Autowired private ApiInterceptor apiInterceptor;
+    @Autowired private NasVideoStorage nasVideoStorage;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
@@ -41,6 +43,12 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/nas-media/**")
+                .allowedOrigins(nasVideoStorage.allowedOrigins())
+                .allowedMethods("GET", "HEAD", "OPTIONS")
+                .allowedHeaders("Range", "If-Range", "Content-Type")
+                .exposedHeaders("Content-Length", "Content-Range", "Accept-Ranges")
+                .maxAge(300);
         registry.addMapping("/**")
                 .allowedOrigins("*")
                 .allowedMethods("*")

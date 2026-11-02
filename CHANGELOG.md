@@ -1,3 +1,7 @@
+## Teaching NAS
+
+- Add read-only NAS video references.
+
 ## 2.3
 
 - 修复:LDAP 登录过滤器注入漏洞

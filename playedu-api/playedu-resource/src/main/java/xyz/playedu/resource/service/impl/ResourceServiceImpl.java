@@ -33,6 +33,7 @@ import xyz.playedu.resource.mapper.ResourceMapper;
 import xyz.playedu.resource.service.ResourceCategoryService;
 import xyz.playedu.resource.service.ResourceExtraService;
 import xyz.playedu.resource.service.ResourceService;
+import xyz.playedu.resource.media.NasVideoStorage;
 
 /**
  * @author tengteng
@@ -48,6 +49,7 @@ public class ResourceServiceImpl extends ServiceImpl<ResourceMapper, Resource>
     @Autowired private ResourceCategoryService relationService;
 
     @Autowired private AppConfigService appConfigService;
+    @Autowired private NasVideoStorage nasVideoStorage;
 
     @Override
     public PaginationResult<Resource> paginate(int page, int size, ResourcePaginateFilter filter) {
@@ -240,7 +242,9 @@ public class ResourceServiceImpl extends ServiceImpl<ResourceMapper, Resource>
                     resource -> {
                         String path = resource.getPath();
                         try {
-                            String url = s3Util.generateEndpointPreSignUrl(path, "");
+                            String url = NasVideoStorage.isNasDisk(resource.getDisk())
+                                    ? nasVideoStorage.signedUrl(resource.getId(), resource.getDisk(), false)
+                                    : s3Util.generateEndpointPreSignUrl(path, "");
                             if (StringUtil.isNotEmpty(url)) {
                                 preSignUrlMap.put(resource.getId(), url);
                             }
@@ -258,8 +262,9 @@ public class ResourceServiceImpl extends ServiceImpl<ResourceMapper, Resource>
         Resource resource = getById(id);
         if (StringUtil.isNotNull(resource)) {
             String name = resource.getName() + "." + resource.getExtension();
-            String url =
-                    new S3Util(appConfigService.getS3Config())
+            String url = NasVideoStorage.isNasDisk(resource.getDisk())
+                    ? nasVideoStorage.signedUrl(resource.getId(), resource.getDisk(), true)
+                    : new S3Util(appConfigService.getS3Config())
                             .generateEndpointPreSignUrl(resource.getPath(), name);
             if (StringUtil.isNotEmpty(url)) {
                 preSignUrlMap.put(resource.getId(), url);

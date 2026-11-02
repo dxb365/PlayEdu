@@ -8,6 +8,7 @@ import {
   Typography,
   Input,
   Button,
+  Tag,
 } from "antd";
 import type { MenuProps } from "antd";
 import { resource } from "../../../api";
@@ -19,6 +20,7 @@ import { TreeCategory, DurationText } from "../../../compenents";
 import { UploadVideoButton } from "../../../compenents/upload-video-button";
 import { VideoPlayDialog } from "./compenents/video-play-dialog";
 import { VideosUpdateDialog } from "./compenents/update-dialog";
+import { NasImportDialog } from "./compenents/nas-import-dialog";
 
 const { confirm } = Modal;
 
@@ -74,6 +76,14 @@ const ResourceVideosPage = () => {
   const [updateId, setUpdateId] = useState(0);
   const [playUrl, setPlayUrl] = useState("");
   const [title, setTitle] = useState("");
+  const [nasEnabled, setNasEnabled] = useState(false);
+  const [nasVisible, setNasVisible] = useState(false);
+
+  useEffect(() => {
+    resource.nasLibraryStatus().then((res: any) => {
+      setNasEnabled(Boolean(res.data.enabled));
+    }).catch(() => setNasEnabled(false));
+  }, []);
 
   useEffect(() => {
     setCateId(Number(result.get("cid")));
@@ -88,7 +98,7 @@ const ResourceVideosPage = () => {
     {
       title: "视频名称",
       dataIndex: "name",
-      render: (text: string) => (
+      render: (text: string, record: DataType) => (
         <div className="d-flex">
           <i
             className="iconfont icon-icon-video"
@@ -98,6 +108,10 @@ const ResourceVideosPage = () => {
             }}
           />
           <span className="ml-8">{text}</span>
+          {record.disk === "nas" &&
+            <Tag className="ml-8" color="blue">
+              NAS 原目录
+            </Tag>}
         </div>
       ),
     },
@@ -198,7 +212,9 @@ const ResourceVideosPage = () => {
     confirm({
       title: "操作确认",
       icon: <ExclamationCircleFilled />,
-      content: "删除前请检查选中视频文件无关联课程，确认删除？",
+      content: videoList.find(video => video.id === id)?.disk === "nas"
+        ? "删除前请检查视频无关联课程。本操作只删除网站引用，NAS 原视频保留。确认删除？"
+        : "删除前请检查选中视频文件无关联课程，确认删除？",
       centered: true,
       okText: "确认",
       cancelText: "取消",
@@ -221,7 +237,7 @@ const ResourceVideosPage = () => {
     confirm({
       title: "操作确认",
       icon: <ExclamationCircleFilled />,
-      content: "删除前请检查选中视频文件无关联课程，确认删除？",
+      content: "删除前请检查选中视频无关联课程。NAS 视频只删除网站引用，原视频保留；上传的视频按原规则删除。确认继续？",
       centered: true,
       okText: "确认",
       cancelText: "取消",
@@ -322,6 +338,9 @@ const ResourceVideosPage = () => {
                   resetVideoList();
                 }}
               ></UploadVideoButton>
+              {nasEnabled && <Button className="ml-16" onClick={() => setNasVisible(true)}>
+                从 NAS 视频库添加
+              </Button>}
               <Button
                 type="default"
                 className="ml-16"
@@ -394,6 +413,8 @@ const ResourceVideosPage = () => {
             )}
           </div>
         </div>
+        <NasImportDialog open={nasVisible} categoryIds={category_ids}
+          onCancel={() => setNasVisible(false)} onImported={resetVideoList} />
         <VideoPlayDialog
           id={Number(updateId)}
           open={playVisible}

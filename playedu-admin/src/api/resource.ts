@@ -1,5 +1,22 @@
 import client from "./internal/httpClient";
 
+export function nasLibraryStatus() {
+  return client.get("/backend/v1/nas-video/status", {});
+}
+
+export function nasLibraryBrowse(path: string, page: number, name: string) {
+  return client.get("/backend/v1/nas-video/browse", { path, page, name, size: 50 });
+}
+
+export function importNasVideo(path: string, categoryIds: number[]) {
+  return client.request({
+    method: "POST",
+    url: "/backend/v1/nas-video/import",
+    timeout: 60000,
+    data: { path, category_ids: categoryIds },
+  });
+}
+
 export function resourceList(
   page: number,
   size: number,

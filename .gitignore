@@ -12,3 +12,5 @@
 **/acme-config/
 **/acme-state/
 **/acme.env
+/nas-library-upgrade/
+/nas-browser-results/

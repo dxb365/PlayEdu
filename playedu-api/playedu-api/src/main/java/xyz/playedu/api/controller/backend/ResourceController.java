@@ -44,6 +44,7 @@ import xyz.playedu.common.types.paginate.ResourcePaginateFilter;
 import xyz.playedu.common.util.S3Util;
 import xyz.playedu.common.util.StringUtil;
 import xyz.playedu.resource.domain.Resource;
+import xyz.playedu.resource.media.NasVideoStorage;
 import xyz.playedu.resource.domain.ResourceExtra;
 import xyz.playedu.resource.service.ResourceExtraService;
 import xyz.playedu.resource.service.ResourceService;
@@ -176,7 +177,9 @@ public class ResourceController {
                 new S3Util(
                         appConfigService.getS3Config(),
                         Boolean.TRUE.equals(playEduConfig.getDemoEnabled()));
-        s3Util.removeByPath(resource.getPath());
+        if (!NasVideoStorage.isNasDisk(resource.getDisk())) {
+            s3Util.removeByPath(resource.getPath());
+        }
         // 如果是视频资源文件则删除对应的时长关联记录
         if (BackendConstant.RESOURCE_TYPE_VIDEO.equals(resource.getType())) {
             resourceExtraService.removeByRid(resource.getId());
@@ -213,7 +216,9 @@ public class ResourceController {
             }
 
             // 删除资源源文件
-            s3Util.removeByPath(resourceItem.getPath());
+            if (!NasVideoStorage.isNasDisk(resourceItem.getDisk())) {
+                s3Util.removeByPath(resourceItem.getPath());
+            }
             // 如果是视频资源的话还需要删除视频的关联资源，如: 封面截图
             if (BackendConstant.RESOURCE_TYPE_VIDEO.equals(resourceItem.getType())) {
                 resourceExtraService.removeByRid(resourceItem.getId());
