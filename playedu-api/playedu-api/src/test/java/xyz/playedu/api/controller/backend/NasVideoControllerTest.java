@@ -119,6 +119,8 @@ class NasVideoControllerTest {
         assertThrows(ServiceException.class, () -> controller.importVideo(
                 new NasVideoController.ImportRequest("../private.mp4", List.of())));
         assertThrows(ServiceException.class, () -> controller.browse("../", "", 1, 50));
+        assertThrows(ServiceException.class, () -> controller.importVideo(
+                new NasVideoController.ImportRequest("a".repeat(256) + ".mp4", List.of())));
         verifyNoInteractions(resources, probe, extras);
     }
 }

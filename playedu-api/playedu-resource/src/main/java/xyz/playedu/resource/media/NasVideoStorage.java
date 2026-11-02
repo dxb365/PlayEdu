@@ -92,7 +92,10 @@ public class NasVideoStorage {
     }
 
     private Path parse(String relative) throws IOException {
-        if (root == null || relative == null || relative.length() > 1_000
+        if (relative != null && relative.length() > 255) {
+            throw new IOException("视频相对路径超过 255 个字符，请选择较浅的目录作为视频库根目录");
+        }
+        if (root == null || relative == null
                 || relative.indexOf('\\') >= 0 || relative.indexOf(':') >= 0
                 || relative.chars().anyMatch(c -> c < 32 || c == 127)) {
             throw new IOException("Invalid video library path");

@@ -11,6 +11,7 @@ const browser = await chromium.launch({ args: [
 ] });
 const errors = [];
 const contexts = [];
+fs.mkdirSync('nas-browser-results', { recursive: true });
 
 async function context(options = {}) {
   const current = await browser.newContext(options);
@@ -33,10 +34,12 @@ try {
   const dialog = admin.getByRole('dialog');
   const row = dialog.getByRole('row').filter({ hasText: '界面测试.mp4' });
   await row.getByRole('checkbox').check();
-  await dialog.getByRole('button', { name: '添加所选视频（1）', exact: true }).click();
+  await dialog.getByRole('row').filter({ hasText: '损坏视频.mp4' }).getByRole('checkbox').check();
+  await dialog.getByRole('button', { name: '添加所选视频（2）', exact: true }).click();
   await row.getByText('已添加', { exact: true }).waitFor();
-  await dialog.getByRole('button', { name: '关闭', exact: true }).click();
-  await admin.getByRole('row').filter({ hasText: '界面测试' }).getByRole('button', { name: '预览', exact: true }).click();
+  await dialog.getByText('以下视频未添加', { exact: true }).waitFor();
+  await dialog.getByRole('button', { name: /^关\s*闭$/ }).click();
+  await admin.getByRole('row').filter({ hasText: '界面测试' }).getByRole('button', { name: /^预\s*览$/ }).click();
   await admin.waitForFunction(() => window.player?.video?.readyState >= 2);
   await admin.evaluate(async () => {
     window.player.video.muted = true;
@@ -47,7 +50,6 @@ try {
   await admin.waitForFunction(() => window.player.video.currentTime >= 8 && !window.player.video.seeking);
   await admin.evaluate(() => window.player.video.pause());
   assert(await admin.evaluate(() => window.player.video.paused));
-  fs.mkdirSync('nas-browser-results', { recursive: true });
   await admin.screenshot({ path: 'nas-browser-results/admin-preview.png', fullPage: true });
   async function api(route, data, token = fixture.adminToken, origin = 'http://127.0.0.1:9900') {
     const response = await adminContext.request.fetch(origin + '/api' + route, {
@@ -118,6 +120,17 @@ try {
   assert.equal(finished.playback_position.position, 20);
   assert.deepEqual(errors, []);
   console.log('Browser checks passed: NAS chooser, original MP4 preview/seek/pause, desktop and Android layout resume, completion.');
+} catch (error) {
+  let index = 0;
+  for (const current of contexts) {
+    for (const page of current.pages()) {
+      const name = 'nas-browser-results/failure-' + index++;
+      await page.screenshot({ path: name + '.png', fullPage: true }).catch(() => {});
+      fs.writeFileSync(name + '.txt', page.url() + '\n' + await page.locator('body').innerText().catch(() => ''));
+    }
+  }
+  console.error('Browser page errors:', errors);
+  throw error;
 } finally {
   await browser.close();
 }

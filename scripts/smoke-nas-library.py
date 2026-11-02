@@ -67,6 +67,7 @@ with tempfile.TemporaryDirectory(prefix='playedu-nas-smoke-') as folder:
             '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
             '/fixtures/章节/第一课.mp4'], check=True)
         shutil.copy(library / '章节/第一课.mp4', library / '界面测试.mp4')
+        (library / '损坏视频.mp4').write_bytes(b'invalid video fixture')
         sources = {str(p.relative_to(library)): hashlib.sha256(p.read_bytes()).hexdigest()
                    for p in library.rglob('*.mp4') if not p.is_symlink()}
         subprocess.run(compose + ['up', '-d'], check=True)

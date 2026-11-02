@@ -43,6 +43,9 @@ export class HttpClient {
 
         if (code === 0) {
           return Promise.resolve(response);
+        } else if (response.config.url?.startsWith("/backend/v1/nas-video/") &&
+            ![401, 403, 429].includes(code)) {
+          return Promise.reject(response);
         } else if (code === 404) {
           message.error(msg);
           // 跳转到404页面
@@ -68,6 +71,10 @@ export class HttpClient {
       // 当http的状态码非0
       (error) => {
         let status = error.response?.status;
+        if (error.config?.url?.startsWith("/backend/v1/nas-video/") &&
+            ![401, 403, 429].includes(status)) {
+          return Promise.reject(error.response || error);
+        }
         if (status === 401) {
           message.error("请重新登录");
           GoLogin();

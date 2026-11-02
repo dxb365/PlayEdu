@@ -189,6 +189,6 @@ public class NasVideoController {
                         String extension, boolean imported) {}
 
     public record ImportRequest(
-            @NotBlank @Size(max = 1_000) String path,
+            @NotBlank @Size(max = 255, message = "视频相对路径超过 255 个字符") String path,
             @JsonProperty("category_ids") List<Integer> categoryIds) {}
 }
