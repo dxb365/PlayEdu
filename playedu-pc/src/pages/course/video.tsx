@@ -209,7 +209,7 @@ const CoursePalyPage = () => {
             onClick={() => {
               timer && clearInterval(timer);
               window.player && window.player.destroy();
-              navigate(-1);
+              navigate(`/course/${params.courseId}`, { replace: true });
             }}
           >
             <ArrowLeftOutlined />

@@ -248,7 +248,7 @@ const CoursePlayPage = () => {
           src={backIcon}
           onClick={() => {
             window.player && window.player.destroy();
-            navigate(-1);
+            navigate(`/course/${params.courseId}`, { replace: true });
           }}
         />
         <div className={styles["video-box"]}>
@@ -263,7 +263,7 @@ const CoursePlayPage = () => {
                 <div
                   className={styles["alert-button"]}
                   onClick={() => {
-                    navigate(-1);
+                    navigate(`/course/${params.courseId}`, { replace: true });
                   }}
                 >
                   恭喜你学完最后一节
