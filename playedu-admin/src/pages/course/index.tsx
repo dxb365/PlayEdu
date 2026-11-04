@@ -189,7 +189,7 @@ const CoursePage = () => {
       dataIndex: "id",
       render: (id: number) => (
         <div className="float-left">
-          {course_category_ids[id].map((item: any, index: number) => {
+          {(course_category_ids[id] || []).map((item: any, index: number) => {
             return (
               <span key={index}>
                 {index === course_category_ids[id].length - 1
@@ -198,6 +198,7 @@ const CoursePage = () => {
               </span>
             );
           })}
+          {!course_category_ids[id]?.length && <span>未分类</span>}
         </div>
       ),
     },

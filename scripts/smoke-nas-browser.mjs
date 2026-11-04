@@ -171,7 +171,7 @@ try {
   const orderingPath = '/backend/v1/course/' + orderingCourse.id;
   const originalHours = (await api(orderingPath)).hours['0'];
   await admin.goto('http://127.0.0.1:9900/course');
-  await admin.getByRole('row').filter({ hasText: 'CI课时排序测试' }).getByRole('button', { name: '更多', exact: true }).hover();
+  await admin.getByRole('row').filter({ hasText: 'CI课时排序测试' }).getByRole('button', { name: /更多/ }).hover();
   await admin.getByRole('button', { name: '课时', exact: true }).click();
   const hoursDrawer = admin.getByRole('dialog', { name: '课时管理' });
   await hoursDrawer.getByRole('button', { name: '排序并保存', exact: true }).click();
