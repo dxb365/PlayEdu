@@ -59,20 +59,10 @@ const CoursePalyPage = () => {
 
   const getCourse = () => {
     Course.detail(Number(params.courseId)).then((res: any) => {
-      let totalHours: HourModel[] = [];
-      if (res.data.chapters.length === 0) {
-        setTotalHours(res.data.hours[0]);
-        totalHours = res.data.hours[0];
-      } else if (res.data.chapters.length > 0) {
-        const arr: HourModel[] = [];
-        for (let key in res.data.hours) {
-          res.data.hours[key].map((item: any) => {
-            arr.push(item);
-          });
-        }
-        setTotalHours(arr);
-        totalHours = arr;
-      }
+      if (Number(window.location.pathname.split('/')[2]) !== Number(params.courseId) ||
+          Number(window.location.pathname.split('/')[4]) !== Number(params.hourId)) return;
+      const totalHours = res.data.ordered_hours || [];
+      setTotalHours(totalHours);
       const index = totalHours.findIndex(
         (i: any) => i.id === Number(params.hourId)
       );
@@ -101,6 +91,10 @@ const CoursePalyPage = () => {
       })
       .catch((e) => {
         setLoading(false);
+        if (Number(window.location.pathname.split('/')[2]) === Number(params.courseId) &&
+            Number(window.location.pathname.split('/')[4]) === Number(params.hourId)) {
+          navigate(`/course/${params.courseId}`, { replace: true });
+        }
       });
   };
 
@@ -145,6 +139,7 @@ const CoursePalyPage = () => {
       hourId: params.hourId,
       total: params.total, initial: systemConfig.playerAutoResume === false ? 0 : params.pos,
       completed: params.completed ? params.total : params.maximum,
+      onCompleted: getCourse,
       allowSeek: !systemConfig.playerIsDisabledDrag,
       allowSpeed: !systemConfig.playerIsDisabledSpeed,
       notify: (text) => message.warning(text),
@@ -181,10 +176,13 @@ const CoursePalyPage = () => {
     if (index === totalHours.length - 1) {
       setIsLastpage(true);
       message.error("已经是最后一节了！");
-    } else if (index < totalHours.length - 1) {
-      navigate(`/course/${params.courseId}/hour/${totalHours[index + 1].id}`, {
-        replace: true,
-      });
+    } else if (index >= 0 && index < totalHours.length - 1) {
+      const nextId = totalHours[index + 1].id;
+      Course.play(Number(params.courseId), nextId).then(() => {
+        if (Number(window.location.pathname.split('/')[2]) !== Number(params.courseId) ||
+            Number(window.location.pathname.split('/')[4]) !== Number(params.hourId)) return;
+        navigate(`/course/${params.courseId}/hour/${nextId}`, { replace: true });
+      }).catch(() => {});
     }
   };
 
@@ -246,9 +244,6 @@ const CoursePalyPage = () => {
                 <div
                   className={styles["alert-button"]}
                   onClick={() => {
-                    window.player && window.player.destroy();
-                    setLastSeeValue({});
-                    setPlayendedStatus(false);
                     goNextVideo();
                   }}
                 >

@@ -9,6 +9,7 @@ import {
   Input,
   Button,
   Tag,
+  Select,
 } from "antd";
 import type { MenuProps } from "antd";
 import { resource } from "../../../api";
@@ -21,6 +22,8 @@ import { UploadVideoButton } from "../../../compenents/upload-video-button";
 import { VideoPlayDialog } from "./compenents/video-play-dialog";
 import { VideosUpdateDialog } from "./compenents/update-dialog";
 import { NasImportDialog } from "./compenents/nas-import-dialog";
+import { VideoBulkDialog } from "./compenents/bulk-dialog";
+import type { VideoBulkOperation } from "./compenents/bulk-dialog";
 
 const { confirm } = Modal;
 
@@ -28,6 +31,7 @@ interface DataType {
   id: React.Key;
   admin_id: number;
   created_at: string;
+  updated_at: string;
   disk: string;
   extension: string;
   file_id: string;
@@ -78,6 +82,9 @@ const ResourceVideosPage = () => {
   const [title, setTitle] = useState("");
   const [nasEnabled, setNasEnabled] = useState(false);
   const [nasVisible, setNasVisible] = useState(false);
+  const [bulkOperation, setBulkOperation] = useState<VideoBulkOperation | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [sort, setSort] = useState("created_at:desc");
 
   useEffect(() => {
     resource.nasLibraryStatus().then((res: any) => {
@@ -134,6 +141,11 @@ const ResourceVideosPage = () => {
       title: "创建时间",
       dataIndex: "created_at",
       render: (created_at: string) => <span>{dateFormat(created_at)}</span>,
+    },
+    {
+      title: "资源修改时间",
+      dataIndex: "updated_at",
+      render: (updatedAt: string) => <span>{updatedAt ? dateFormat(updatedAt) : "—"}</span>,
     },
     {
       title: "操作",
@@ -231,7 +243,7 @@ const ResourceVideosPage = () => {
   };
 
   const removeResourceMulti = () => {
-    if (selectedRowKeys.length === 0) {
+    if (selectedRowKeys.length === 0 || bulkBusy) {
       return;
     }
     confirm({
@@ -241,11 +253,18 @@ const ResourceVideosPage = () => {
       centered: true,
       okText: "确认",
       cancelText: "取消",
-      onOk() {
-        resource.destroyResourceMulti(selectedRowKeys).then(() => {
+      async onOk() {
+        setBulkBusy(true);
+        try {
+          await resource.destroyResourceMulti(selectedRowKeys);
           message.success("删除成功");
           resetVideoList();
-        });
+        } catch (error: any) {
+          message.error(error?.msg || "删除失败，请刷新列表确认结果后重试");
+          throw error;
+        } finally {
+          setBulkBusy(false);
+        }
       },
       onCancel() {
         console.log("Cancel");
@@ -258,7 +277,7 @@ const ResourceVideosPage = () => {
     setLoading(true);
     let categoryIds = category_ids.join(",");
     resource
-      .resourceList(page, size, "", "", title, "VIDEO", categoryIds)
+      .resourceList(page, size, sort.split(":")[0], sort.split(":")[1], title, "VIDEO", categoryIds)
       .then((res: any) => {
         setTotal(res.data.result.total);
         setVideoList(res.data.result.data);
@@ -285,7 +304,7 @@ const ResourceVideosPage = () => {
   // 加载视频列表
   useEffect(() => {
     getVideoList();
-  }, [category_ids, refresh, page, size]);
+  }, [category_ids, refresh, page, size, sort]);
 
   const paginationProps = {
     current: page, //当前页码
@@ -294,6 +313,8 @@ const ResourceVideosPage = () => {
     onChange: (page: number, pageSize: number) =>
       handlePageChange(page, pageSize), //改变页码的函数
     showSizeChanger: true,
+    pageSizeOptions: [10, 20, 50, 100, 200],
+    disabled: bulkBusy,
   };
 
   const handlePageChange = (page: number, pageSize: number) => {
@@ -302,8 +323,15 @@ const ResourceVideosPage = () => {
   };
 
   const rowSelection = {
-    onChange: (selectedRowKeys: React.Key[], selectedRows: DataType[]) => {
-      setSelectedRowKeys(selectedRowKeys);
+    selectedRowKeys,
+    preserveSelectedRowKeys: true,
+    getCheckboxProps: () => ({ disabled: bulkBusy }),
+    onChange: (keys: React.Key[]) => {
+      if (keys.length > 200) {
+        message.warning("每次最多选择 200 个视频");
+        return;
+      }
+      setSelectedRowKeys(keys.map(Number));
     },
   };
 
@@ -316,6 +344,8 @@ const ResourceVideosPage = () => {
             type="no-cate"
             text={"视频"}
             onUpdate={(keys: any, title: any) => {
+              if (bulkBusy) return;
+              setSelectedRowKeys([]);
               setPage(1);
               setCategoryIds(keys);
               if (typeof title === "string") {
@@ -344,6 +374,7 @@ const ResourceVideosPage = () => {
               <Button
                 type="default"
                 className="ml-16"
+                disabled={bulkBusy}
                 onClick={() => {
                   setSelectedRowKeys([]);
                   setMultiConfig(!multiConfig);
@@ -351,16 +382,16 @@ const ResourceVideosPage = () => {
               >
                 {multiConfig ? "取消操作" : "批量操作"}
               </Button>
-              <Button
-                className="ml-16"
-                type="default"
-                onClick={() => removeResourceMulti()}
-                disabled={selectedRowKeys.length === 0}
-              >
-                删除
-              </Button>
             </div>
             <div className="d-flex">
+              <Select aria-label="视频列表排序" value={sort} disabled={bulkBusy} className="mr-16"
+                style={{ width: 200 }} options={[
+                  { value: "created_at:desc", label: "默认：最近添加" },
+                  { value: "name:asc", label: "名称：从小到大" },
+                  { value: "name:desc", label: "名称：从大到小" },
+                  { value: "updated_at:desc", label: "资源修改时间：从新到旧" },
+                  { value: "updated_at:asc", label: "资源修改时间：从旧到新" },
+                ]} onChange={value => { setSort(value); setPage(1); }} />
               <div className="d-flex mr-24">
                 <Typography.Text>名称：</Typography.Text>
                 <Input
@@ -390,6 +421,18 @@ const ResourceVideosPage = () => {
             </div>
           </div>
           <div className="float-left">
+            {multiConfig && selectedRowKeys.length > 0 && <div role="toolbar" aria-label="视频批量操作"
+              style={{ position: "sticky", top: 0, zIndex: 5, background: "#fff", padding: 16,
+                marginBottom: 16, border: "1px solid #eee", borderRadius: 8 }}>
+              <Space wrap>
+                <span>已选择 {selectedRowKeys.length} / 200 个视频</span>
+                <Button disabled={bulkBusy} onClick={() => setBulkOperation("move")}>批量移动</Button>
+                <Button disabled={bulkBusy} onClick={() => setBulkOperation("copy")}>批量复制</Button>
+                <Button disabled={bulkBusy} onClick={() => setBulkOperation("categories")}>批量改分类</Button>
+                <Button danger disabled={bulkBusy} onClick={removeResourceMulti}>批量删除</Button>
+                <Button type="link" disabled={bulkBusy} onClick={() => setSelectedRowKeys([])}>清空选择</Button>
+              </Space>
+            </div>}
             {multiConfig ? (
               <Table
                 rowSelection={{
@@ -415,6 +458,9 @@ const ResourceVideosPage = () => {
         </div>
         <NasImportDialog open={nasVisible} categoryIds={category_ids}
           onCancel={() => setNasVisible(false)} onImported={resetVideoList} />
+        <VideoBulkDialog operation={bulkOperation} ids={selectedRowKeys.map(Number)}
+          onBusy={setBulkBusy} onCancel={() => setBulkOperation(null)}
+          onSuccess={() => { setBulkOperation(null); resetVideoList(); }} />
         <VideoPlayDialog
           id={Number(updateId)}
           open={playVisible}

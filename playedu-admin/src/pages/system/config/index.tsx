@@ -46,10 +46,10 @@ const SystemConfigPage = () => {
     appConfig.appConfig().then((res: any) => {
       setResourceUrl(res.data.resource_url);
       // Teaching customization: load independent speed and resume switches.
-      form.setFieldsValue({ "player.disabled_speed": false, "player.auto_resume": true });
+      form.setFieldsValue({ "player.disabled_speed": false, "player.auto_resume": true, "player.sequential_learning": false });
       let configData = res.data.app_config;
       for (let i = 0; i < configData.length; i++) {
-        if (["player.disabled_speed", "player.auto_resume"].includes(configData[i].key_name)) {
+        if (["player.disabled_speed", "player.auto_resume", "player.sequential_learning"].includes(configData[i].key_name)) {
           form.setFieldsValue({ [configData[i].key_name]: configData[i].key_value === "1" });
         } else if (configData[i].key_name === "system.name") {
           form.setFieldsValue({
@@ -246,7 +246,7 @@ const SystemConfigPage = () => {
     setLoading(true);
     values["player.bullet_secret_opacity"] =
       values["player.bullet_secret_opacity"] / 100;
-    for (const key of ["player.disabled_speed", "player.auto_resume"]) {
+    for (const key of ["player.disabled_speed", "player.auto_resume", "player.sequential_learning"]) {
       if (values[key] !== undefined) values[key] = values[key] ? "1" : "0";
     }
     appConfig.saveAppConfig(values).then((res: any) => {
@@ -421,6 +421,14 @@ const SystemConfigPage = () => {
           {/* Teaching customization: speed and seeking are controlled separately. */}
           <Form.Item label="禁止倍速播放" name="player.disabled_speed" valuePropName="checked">
             <Switch />
+          </Form.Item>
+          <Form.Item label="按顺序学习">
+            <Space align="baseline">
+              <Form.Item name="player.sequential_learning" valuePropName="checked" noStyle>
+                <Switch />
+              </Form.Item>
+              <span className="helper-text">前面的课时学完后，才可学习下一节；已完成课时可复习。</span>
+            </Space>
           </Form.Item>
           <Form.Item label="自动恢复上次学习" name="player.auto_resume" valuePropName="checked">
             <Switch />

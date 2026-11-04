@@ -43,7 +43,8 @@ export class HttpClient {
 
         if (code === 0) {
           return Promise.resolve(response);
-        } else if (response.config.url?.startsWith("/backend/v1/nas-video/") &&
+        } else if ((response.config.url?.startsWith("/backend/v1/nas-video/") ||
+            ["/backend/v1/resource/bulk", "/backend/v1/resource/destroy-multi"].includes(response.config.url || "")) &&
             ![401, 403, 429].includes(code)) {
           return Promise.reject(response);
         } else if (code === 404) {
@@ -71,7 +72,8 @@ export class HttpClient {
       // 当http的状态码非0
       (error) => {
         let status = error.response?.status;
-        if (error.config?.url?.startsWith("/backend/v1/nas-video/") &&
+        if ((error.config?.url?.startsWith("/backend/v1/nas-video/") ||
+            ["/backend/v1/resource/bulk", "/backend/v1/resource/destroy-multi"].includes(error.config?.url || "")) &&
             ![401, 403, 429].includes(status)) {
           return Promise.reject(error.response || error);
         }

@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import styles from "./hour.module.scss";
 import { durationFormat } from "../../../utils/index";
+import { message } from "antd";
 
 interface PropInterface {
   id: number;
@@ -10,6 +11,7 @@ interface PropInterface {
   duration: number;
   record: any;
   progress: number;
+  locked?: boolean;
 }
 
 export const HourCompenent: React.FC<PropInterface> = ({
@@ -19,6 +21,7 @@ export const HourCompenent: React.FC<PropInterface> = ({
   duration,
   record,
   progress,
+  locked = false,
 }) => {
   const navigate = useNavigate();
   return (
@@ -26,8 +29,13 @@ export const HourCompenent: React.FC<PropInterface> = ({
       <div
         className={styles["item"]}
         onClick={() => {
+          if (locked) {
+            message.info("请先学完前面的课时");
+            return;
+          }
           navigate(`/course/${cid}/hour/${id}`);
         }}
+        aria-disabled={locked}
       >
         <div className={styles["left-item"]}>
           <i className="iconfont icon-icon-video"></i>
@@ -36,7 +44,8 @@ export const HourCompenent: React.FC<PropInterface> = ({
           </div>
         </div>
         <div className="d-flex">
-          {progress >= 0 && progress < 100 && (
+          {locked && <div className={styles["record"]}>🔒 请先学完前面课时</div>}
+          {!locked && progress >= 0 && progress < 100 && (
             <>
               {progress === 0 && <div className={styles["link"]}>未学习 · 开始学习</div>}
               {progress !== 0 && (

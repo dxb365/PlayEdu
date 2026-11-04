@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, Input, Modal, Progress, Space, Table, Tag, message } from "antd";
+import { Alert, Button, Input, Modal, Progress, Select, Space, Table, Tag, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { resource } from "../../../../../api";
 
@@ -10,6 +10,7 @@ type Entry = {
   size: number;
   extension: string;
   imported: boolean;
+  modified_at: number;
 };
 
 type Props = {
@@ -34,12 +35,13 @@ export const NasImportDialog = ({ open, categoryIds, onCancel, onImported }: Pro
   const [errors, setErrors] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [truncated, setTruncated] = useState(false);
+  const [sort, setSort] = useState("name:asc");
 
-  const load = async (nextPath: string, nextPage = 1, query = name) => {
+  const load = async (nextPath: string, nextPage = 1, query = name, ordering = sort) => {
     setLoading(true);
-    setSelected([]);
     try {
-      const res: any = await resource.nasLibraryBrowse(nextPath, nextPage, query);
+      const [field, order] = ordering.split(":");
+      const res: any = await resource.nasLibraryBrowse(nextPath, nextPage, query, field, order);
       setEntries(res.data.entries);
       setPath(res.data.path);
       setParent(res.data.parent);
@@ -54,6 +56,7 @@ export const NasImportDialog = ({ open, categoryIds, onCancel, onImported }: Pro
   };
 
   const enter = (nextPath: string) => {
+    setSelected([]);
     setName("");
     load(nextPath, 1, "");
   };
@@ -65,6 +68,7 @@ export const NasImportDialog = ({ open, categoryIds, onCancel, onImported }: Pro
     setDone(0);
     setCount(0);
     setName("");
+    setSelected([]);
     load("", 1, "");
   }, [open]);
 
@@ -91,6 +95,7 @@ export const NasImportDialog = ({ open, categoryIds, onCancel, onImported }: Pro
       }
       setErrors(failures);
       setWarnings(notices);
+      setSelected([]);
       if (created > 0) {
         message.success("已添加 " + created + " 个视频引用");
         onImported();
@@ -111,6 +116,8 @@ export const NasImportDialog = ({ open, categoryIds, onCancel, onImported }: Pro
         : <span>{value} {entry.imported && <Tag color="green">已添加</Tag>}</span>,
     },
     { title: "格式", width: 90, render: (_, entry) => entry.directory ? "—" : entry.extension },
+    { title: "文件修改时间", width: 185,
+      render: (_, entry) => new Date(entry.modified_at).toLocaleString() },
     {
       title: "大小", width: 120,
       render: (_, entry) => entry.directory ? "文件夹"
@@ -136,7 +143,15 @@ export const NasImportDialog = ({ open, categoryIds, onCancel, onImported }: Pro
     <Space wrap style={{ marginBottom: 16 }}>
       <Input.Search placeholder="在当前目录按名称查找" value={name} disabled={importing}
         onChange={event => setName(event.target.value)}
-        onSearch={value => load(path, 1, value)} style={{ width: 300 }} allowClear />
+        onSearch={value => { setSelected([]); load(path, 1, value); }} style={{ width: 300 }} allowClear />
+      <span>已选择 {selected.length} / 200 个视频</span>
+      <Select aria-label="NAS视频排序" value={sort} disabled={importing || loading} style={{ width: 200 }}
+        options={[
+          { value: "name:asc", label: "名称：从小到大" },
+          { value: "name:desc", label: "名称：从大到小" },
+          { value: "modified_at:desc", label: "修改时间：从新到旧" },
+          { value: "modified_at:asc", label: "修改时间：从旧到新" },
+        ]} onChange={value => { setSort(value); load(path, 1, name, value); }} />
     </Space>
     {truncated && <Alert type="warning" showIcon style={{ marginBottom: 12 }}
       message="当前目录条目较多，请输入文件名筛选或进入更细分的目录。" />}
@@ -147,21 +162,22 @@ export const NasImportDialog = ({ open, categoryIds, onCancel, onImported }: Pro
     {warnings.length > 0 && <Alert type="warning" showIcon style={{ marginBottom: 12 }}
       message="请先预览这些原格式视频" description={warnings.map((text, index) => <div key={index}>{text}</div>)} />}
     <Table<Entry> rowKey="path" columns={columns} dataSource={entries}
-      loading={loading} size="small"
+      loading={loading} size="small" scroll={{ y: 420 }}
       rowSelection={{
         selectedRowKeys: selected,
+        preserveSelectedRowKeys: true,
         getCheckboxProps: entry => ({
           disabled: importing || entry.directory || entry.imported,
         }),
         onChange: keys => {
-          if (keys.length > 20) {
-            message.info("每次最多选择 20 个视频");
+          if (keys.length > 200) {
+            message.info("每次最多选择 200 个视频");
             return;
           }
           setSelected(keys.map(String));
         },
       }}
-      pagination={{ current: page, pageSize: 50, total, showSizeChanger: false, disabled: importing,
+      pagination={{ current: page, pageSize: 200, total, showSizeChanger: false, disabled: importing,
         onChange: value => load(path, value) }} />
   </Modal>;
 };

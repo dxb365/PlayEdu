@@ -48,6 +48,7 @@ import xyz.playedu.resource.service.ResourceService;
 @RestController
 @RequestMapping("/api/v1/course/{courseId}/hour")
 public class HourController {
+    @Autowired private xyz.playedu.api.service.SequentialLearningService sequence;
 
     // Teaching customization: persist the latest cursor as well as completion.
     @Autowired private xyz.playedu.api.service.PlaybackPositionService positions;
@@ -76,6 +77,8 @@ public class HourController {
             @PathVariable(name = "id") Integer id) {
         Course course = courseService.findOrFail(courseId);
         CourseHour courseHour = hourService.findOrFail(id, courseId);
+        userCanSeeCourseCache.check(FCtx.getId(), courseId, true);
+        sequence.requireUnlocked(FCtx.getId(), courseId, id);
 
         UserCourseHourRecord userCourseHourRecord = null;
         if (FCtx.getId() != null && FCtx.getId() > 0) {
@@ -99,6 +102,7 @@ public class HourController {
             @PathVariable(name = "id") Integer id) {
         userCanSeeCourseCache.check(FCtx.getId(), courseId, true);
         CourseHour hour = hourService.findOrFail(id, courseId);
+        sequence.requireUnlocked(FCtx.getId(), courseId, id);
         Resource resource = resourceService.findOrFail(hour.getRid());
 
         HashMap<String, Object> data = new HashMap<>();
@@ -130,6 +134,7 @@ public class HourController {
 
         CourseHour hour = hourService.findOrFail(id, courseId);
         userCanSeeCourseCache.check(FCtx.getId(), courseId, true);
+        sequence.requireUnlocked(FCtx.getId(), courseId, id);
 
         // 获取锁
         String lockKey = String.format("record:%d", FCtx.getId());
@@ -166,6 +171,8 @@ public class HourController {
             @PathVariable(name = "courseId") Integer courseId,
             @PathVariable(name = "id") Integer id) {
         userCanSeeCourseCache.check(FCtx.getId(), courseId, true);
+        hourService.findOrFail(id, courseId);
+        sequence.requireUnlocked(FCtx.getId(), courseId, id);
 
         // 获取锁
         String lockKey = String.format("ping:%d", FCtx.getId());

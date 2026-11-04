@@ -203,6 +203,7 @@ public class ResourceServiceImpl extends ServiceImpl<ResourceMapper, Resource>
         Resource resource = new Resource();
         resource.setId(id);
         resource.setName(name);
+        resource.setUpdatedAt(new Date());
         updateById(resource);
 
         relationService.rebuild(

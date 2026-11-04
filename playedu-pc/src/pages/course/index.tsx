@@ -49,6 +49,7 @@ const CoursePage = () => {
   const result = new URLSearchParams(useLocation().search);
   const [loading, setLoading] = useState<boolean>(true);
   const [course, setCourse] = useState<CourseModel | null>(null);
+  const [lockedHours, setLockedHours] = useState<number[]>([]);
   const [chapters, setChapters] = useState<ChapterModel[]>([]);
   const [hours, setHours] = useState<HoursModel>({});
   const [learnRecord, setLearnRecord] = useState<CourseRecordModel | null>(
@@ -73,6 +74,7 @@ const CoursePage = () => {
         document.title = res.data.course.title;
         setCourse(res.data.course);
         setChapters(res.data.chapters);
+      setLockedHours(res.data.locked_hour_ids || []);
         if (JSON.stringify(res.data.hours) !== "{}") {
           setHours(res.data.hours);
         }
@@ -287,6 +289,7 @@ const CoursePage = () => {
                       {learnHourRecord[item.id] && (
                         <HourCompenent
                           id={item.id}
+                          locked={lockedHours.includes(item.id)}
                           cid={item.course_id}
                           title={item.title}
                           record={learnHourRecord[item.id]}
@@ -300,6 +303,7 @@ const CoursePage = () => {
                       {!learnHourRecord[item.id] && (
                         <HourCompenent
                           id={item.id}
+                          locked={lockedHours.includes(item.id)}
                           cid={item.course_id}
                           title={item.title}
                           record={null}
@@ -322,6 +326,7 @@ const CoursePage = () => {
                             {learnHourRecord[it.id] && (
                               <HourCompenent
                                 id={it.id}
+                                locked={lockedHours.includes(it.id)}
                                 cid={item.course_id}
                                 title={it.title}
                                 record={learnHourRecord[it.id]}
@@ -336,6 +341,7 @@ const CoursePage = () => {
                             {!learnHourRecord[it.id] && (
                               <HourCompenent
                                 id={it.id}
+                                locked={lockedHours.includes(it.id)}
                                 cid={item.course_id}
                                 title={it.title}
                                 record={null}

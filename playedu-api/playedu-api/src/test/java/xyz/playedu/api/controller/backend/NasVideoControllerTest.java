@@ -109,7 +109,7 @@ class NasVideoControllerTest {
         when(backend.isSuperAdmin()).thenReturn(false);
         Map<?, ?> status = (Map<?, ?>) controller.status().getData();
         assertEquals(false, status.get("enabled"));
-        assertThrows(ServiceException.class, () -> controller.browse("", "", 1, 50));
+        assertThrows(ServiceException.class, () -> controller.browse("", "", 1, 50, "name", "asc"));
         assertThrows(ServiceException.class, () -> controller.importVideo(
                 new NasVideoController.ImportRequest("第一课.mp4", List.of())));
         verifyNoInteractions(resources, probe, extras);
@@ -118,7 +118,7 @@ class NasVideoControllerTest {
     @Test void traversalDoesNotReachTheProbeOrDatabase() {
         assertThrows(ServiceException.class, () -> controller.importVideo(
                 new NasVideoController.ImportRequest("../private.mp4", List.of())));
-        assertThrows(ServiceException.class, () -> controller.browse("../", "", 1, 50));
+        assertThrows(ServiceException.class, () -> controller.browse("../", "", 1, 50, "name", "asc"));
         assertThrows(ServiceException.class, () -> controller.importVideo(
                 new NasVideoController.ImportRequest("a".repeat(256) + ".mp4", List.of())));
         verifyNoInteractions(resources, probe, extras);

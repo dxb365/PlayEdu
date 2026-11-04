@@ -5,11 +5,11 @@
 ## 升级已有站点
 
 1. 在 Container Manager 停止教学项目。先保留原来的 YAML 配置，并备份教学数据库。
-2. 在“映像 → 操作 → 从文件添加”分别导入 `playedu-teaching-api-nas-v1.tar.gz` 和 `playedu-teaching-web-nas-v1.tar.gz`。完成后应显示 `playedu-teaching-api`、`playedu-teaching-web`，两项标签都是 `nas-v1`。原来的 `local` 标签可以保留。
+2. 在“映像 → 操作 → 从文件添加”分别导入 `playedu-teaching-api-controls-v1.tar.gz` 和 `playedu-teaching-web-controls-v1.tar.gz`。完成后应显示 `playedu-teaching-api`、`playedu-teaching-web`，两项标签都是 `controls-v1`。原来的 `local` 标签可以保留。
 3. 本版本提供完整的 `compose.nas.yaml`。通用配置需要在群晖项目原有的 `.env` 文件中增加一行 `NAS_VIDEO_DIR=/volume1/课程视频`，将右侧改为实际目录。使用已填好目录的个人配置时，无需增加这一行。
 4. 在原项目的“详情 → YAML 配置”中用 NAS 版本的完整内容替换并保存，再启动原项目。项目目录、项目名和原有数据目录保持原值。不要创建第二个空白教学项目，也不要删除 `mysql`、`storage`、`certs`、`acme-state`、`acme-config` 或 `.env`。
 5. 本配置保留 ZeroSSL 自动续期。若原站点使用其他证书机构，请保留原来的 `TEACHING_ACME_SERVER` 和 `TEACHING_ACME_HOME` 两项设置。
-6. 登录原来的管理后台，进入“资源管理 → 视频”，点击“从 NAS 视频库添加”，进入子目录并勾选视频。每次最多选 20 个，点击“添加所选视频”。这里只检查视频信息，可能需要等待几秒。
+6. 登录原来的管理后台，进入“资源管理 → 视频”，点击“从 NAS 视频库添加”，进入子目录并勾选视频。每次最多选 200 个，点击“添加所选视频”。这里只检查视频信息，可能需要等待几秒。
 7. 先选一个 H.264/AAC 编码的 MP4，添加后点击“预览”。然后在“课程中心 → 线上课”创建课程并选择该视频，给测试学员分配课程，验证播放、暂停、退出后继续学习以及已完成状态。
 
 学员地址、管理后台地址和现有安卓应用继续使用原入口。网站的拖动、倍速和自动续播设置沿用现有后台选项。

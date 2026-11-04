@@ -20,14 +20,14 @@ import java.util.stream.Collectors;
 import lombok.SneakyThrows;
 import org.apache.commons.collections4.MapUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import xyz.playedu.api.request.backend.ResourceDestroyMultiRequest;
+import xyz.playedu.api.request.backend.ResourceBulkRequest;
+import xyz.playedu.api.service.ResourceBulkService;
 import xyz.playedu.api.request.backend.ResourceUpdateRequest;
 import xyz.playedu.common.annotation.Log;
 import xyz.playedu.common.bus.BackendBus;
-import xyz.playedu.common.config.PlayEduConfig;
 import xyz.playedu.common.constant.BackendConstant;
 import xyz.playedu.common.constant.BusinessTypeConstant;
 import xyz.playedu.common.context.BCtx;
@@ -36,15 +36,12 @@ import xyz.playedu.common.domain.Category;
 import xyz.playedu.common.exception.NotFoundException;
 import xyz.playedu.common.exception.ServiceException;
 import xyz.playedu.common.service.AdminUserService;
-import xyz.playedu.common.service.AppConfigService;
 import xyz.playedu.common.service.CategoryService;
 import xyz.playedu.common.types.JsonResponse;
 import xyz.playedu.common.types.paginate.PaginationResult;
 import xyz.playedu.common.types.paginate.ResourcePaginateFilter;
-import xyz.playedu.common.util.S3Util;
 import xyz.playedu.common.util.StringUtil;
 import xyz.playedu.resource.domain.Resource;
-import xyz.playedu.resource.media.NasVideoStorage;
 import xyz.playedu.resource.domain.ResourceExtra;
 import xyz.playedu.resource.service.ResourceExtraService;
 import xyz.playedu.resource.service.ResourceService;
@@ -59,13 +56,11 @@ public class ResourceController {
 
     @Autowired private ResourceExtraService resourceExtraService;
 
-    @Autowired private AppConfigService appConfigService;
-
     @Autowired private BackendBus backendBus;
 
     @Autowired private CategoryService categoryService;
 
-    @Autowired private PlayEduConfig playEduConfig;
+    @Autowired private ResourceBulkService bulkService;
 
     @GetMapping("/index")
     @Log(title = "资源-列表", businessType = BusinessTypeConstant.GET)
@@ -159,73 +154,24 @@ public class ResourceController {
         return JsonResponse.data(data);
     }
 
+    @PostMapping("/bulk")
+    @Log(title = "视频-批量操作", businessType = BusinessTypeConstant.UPDATE)
+    public JsonResponse bulk(@RequestBody @Validated ResourceBulkRequest request) {
+        return JsonResponse.data(bulkService.perform(request));
+    }
+
     @DeleteMapping("/{id}")
-    @Transactional
-    @SneakyThrows
     @Log(title = "资源-删除", businessType = BusinessTypeConstant.DELETE)
     public JsonResponse destroy(@PathVariable(name = "id") Integer id) throws NotFoundException {
-        Resource resource = resourceService.findOrFail(id);
-
-        if (!backendBus.isSuperAdmin()) {
-            if (!resource.getAdminId().equals(BCtx.getId())) {
-                throw new ServiceException("无权限");
-            }
-        }
-
-        // 删除文件
-        S3Util s3Util =
-                new S3Util(
-                        appConfigService.getS3Config(),
-                        Boolean.TRUE.equals(playEduConfig.getDemoEnabled()));
-        if (!NasVideoStorage.isNasDisk(resource.getDisk())) {
-            s3Util.removeByPath(resource.getPath());
-        }
-        // 如果是视频资源文件则删除对应的时长关联记录
-        if (BackendConstant.RESOURCE_TYPE_VIDEO.equals(resource.getType())) {
-            resourceExtraService.removeByRid(resource.getId());
-        }
-        // 删除资源记录
-        resourceService.removeById(resource.getId());
+        resourceService.findOrFail(id);
+        bulkService.delete(List.of(id));
         return JsonResponse.success();
     }
 
     @PostMapping("/destroy-multi")
-    @SneakyThrows
-    @Log(title = "资源-批量列表", businessType = BusinessTypeConstant.DELETE)
-    public JsonResponse multiDestroy(@RequestBody ResourceDestroyMultiRequest req) {
-        if (req.getIds() == null || req.getIds().isEmpty()) {
-            return JsonResponse.error("请选择需要删除的资源");
-        }
-
-        List<Resource> resources = resourceService.chunks(req.getIds());
-        if (resources == null || resources.isEmpty()) {
-            return JsonResponse.success();
-        }
-
-        S3Util s3Util =
-                new S3Util(
-                        appConfigService.getS3Config(),
-                        Boolean.TRUE.equals(playEduConfig.getDemoEnabled()));
-
-        for (Resource resourceItem : resources) {
-            // 权限校验
-            if (!backendBus.isSuperAdmin()) {
-                if (!resourceItem.getAdminId().equals(BCtx.getId())) {
-                    throw new ServiceException("无权限");
-                }
-            }
-
-            // 删除资源源文件
-            if (!NasVideoStorage.isNasDisk(resourceItem.getDisk())) {
-                s3Util.removeByPath(resourceItem.getPath());
-            }
-            // 如果是视频资源的话还需要删除视频的关联资源，如: 封面截图
-            if (BackendConstant.RESOURCE_TYPE_VIDEO.equals(resourceItem.getType())) {
-                resourceExtraService.removeByRid(resourceItem.getId());
-            }
-            // 删除数据库的记录
-            resourceService.removeById(resourceItem.getId());
-        }
+    @Log(title = "资源-批量删除", businessType = BusinessTypeConstant.DELETE)
+    public JsonResponse multiDestroy(@RequestBody @Validated ResourceDestroyMultiRequest req) {
+        bulkService.delete(req.getIds());
         return JsonResponse.success();
     }
 

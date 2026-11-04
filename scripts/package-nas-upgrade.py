@@ -22,7 +22,7 @@ def add_file(archive, name, payload):
     archive.addfile(info, io.BytesIO(payload))
 
 
-for tag in ('playedu-teaching-api:nas-v1', 'playedu-teaching-web:nas-v1'):
+for tag in ('playedu-teaching-api:controls-v1', 'playedu-teaching-web:controls-v1'):
     with tempfile.TemporaryFile() as saved:
         subprocess.run(['docker', 'save', tag], stdout=saved, check=True)
         saved.seek(0)
@@ -74,7 +74,7 @@ for tag in ('playedu-teaching-api:nas-v1', 'playedu-teaching-web:nas-v1'):
     digest = hashlib.file_digest((destination / filename).open('rb'), 'sha256').hexdigest()
     reports.append({'file': filename, 'tag': tag, 'image_id': 'sha256:' + config_id,
                     'sha256': digest, 'verified_layers': len(diffs)})
-for name in ('compose.nas.yaml', 'NAS-VIDEO.zh-CN.md'):
+for name in ('compose.nas.yaml', 'NAS-VIDEO.zh-CN.md', 'VIDEO-MANAGEMENT.zh-CN.md'):
     shutil.copy(root / 'deploy/synology' / name, destination / name)
 (destination / 'BUILD.txt').write_text('Source commit: ' + subprocess.check_output(
     ['git', 'rev-parse', 'HEAD'], text=True).strip() + '\n', encoding='utf-8')

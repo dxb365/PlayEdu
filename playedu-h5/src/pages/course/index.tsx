@@ -36,6 +36,7 @@ const CoursePage = () => {
   const navigate = useNavigate();
   const result = new URLSearchParams(useLocation().search);
   const [course, setCourse] = useState<CourseModel | null>(null);
+  const [lockedHours, setLockedHours] = useState<number[]>([]);
   const [chapters, setChapters] = useState<ChapterModel[]>([]);
   const [hours, setHours] = useState<LocalCourseHour | null>(null);
   const [learnRecord, setLearnRecord] = useState<UserLearnRecordModel | null>(
@@ -61,6 +62,7 @@ const CoursePage = () => {
       document.title = courseItem.title || "课程详情";
       setCourse(courseItem);
       setChapters(res.data.chapters);
+      setLockedHours(res.data.locked_hour_ids || []);
       if (!isEmptyObject(res.data.hours)) {
         setHours(res.data.hours);
       }
@@ -229,6 +231,7 @@ const CoursePage = () => {
                     <div key={item.id} className={styles["hours-it"]}>
                       <HourCompenent
                         id={item.id}
+                        locked={lockedHours.includes(item.id)}
                         cid={item.course_id}
                         title={item.title}
                         record={learnHourRecord[item.id]}
@@ -251,6 +254,7 @@ const CoursePage = () => {
                         <div key={it.id} className={styles["hours-it"]}>
                           <HourCompenent
                             id={it.id}
+                            locked={lockedHours.includes(it.id)}
                             cid={item.course_id}
                             title={it.title}
                             record={learnHourRecord[it.id]}

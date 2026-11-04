@@ -68,8 +68,14 @@ public class NasVideoController {
     public JsonResponse browse(@RequestParam(defaultValue = "") String path,
             @RequestParam(defaultValue = "") String name,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "50") int size) {
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(name = "sort_field", defaultValue = "name") String sortField,
+            @RequestParam(name = "sort_order", defaultValue = "asc") String sortOrder) {
         requireAdmin();
+        if (!Set.of("name", "modified_at").contains(sortField)
+                || !Set.of("asc", "desc").contains(sortOrder)) {
+            throw new ServiceException("不支持的排序方式");
+        }
         try {
             Path directory = storage.resolve(path, true);
             List<Entry> all = new ArrayList<>();
@@ -87,7 +93,8 @@ public class NasVideoController {
                             || !Files.isRegularFile(child, LinkOption.NOFOLLOW_LINKS))) continue;
                     try {
                         all.add(new Entry(filename, storage.relative(child), folder,
-                                folder ? 0 : Files.size(child), ext, false));
+                                folder ? 0 : Files.size(child), ext, false,
+                                Files.getLastModifiedTime(child, LinkOption.NOFOLLOW_LINKS).toMillis()));
                     } catch (IOException ignored) {
                         continue;
                     }
@@ -98,9 +105,12 @@ public class NasVideoController {
                     }
                 }
             }
+            Comparator<Entry> ordering = "modified_at".equals(sortField)
+                    ? Comparator.comparingLong(Entry::modifiedAt)
+                    : Comparator.comparing(Entry::name, String.CASE_INSENSITIVE_ORDER);
+            if ("desc".equals(sortOrder)) ordering = ordering.reversed();
             all.sort(Comparator.comparing(Entry::directory).reversed()
-                    .thenComparing(Entry::name, String.CASE_INSENSITIVE_ORDER)
-                    .thenComparing(Entry::name));
+                    .thenComparing(ordering).thenComparing(Entry::name));
             int limit = Math.min(200, Math.max(1, size));
             int offset = (int) Math.min(all.size(), Math.max(0L, (long) page - 1) * limit);
             List<Entry> entries = all.subList(offset, Math.min(all.size(), offset + limit));
@@ -111,7 +121,7 @@ public class NasVideoController {
                             .in("path", paths)).stream().map(Resource::getPath).collect(Collectors.toSet());
             List<Entry> result = entries.stream().map(e -> new Entry(
                     e.name(), e.path(), e.directory(), e.size(), e.extension(),
-                    existing.contains(e.path()))).toList();
+                    existing.contains(e.path()), e.modifiedAt())).toList();
             String current = storage.relative(directory);
             int slash = current.lastIndexOf('/');
             String parent = slash < 0 ? "" : current.substring(0, slash);
@@ -186,7 +196,8 @@ public class NasVideoController {
     }
 
     public record Entry(String name, String path, boolean directory, long size,
-                        String extension, boolean imported) {}
+                        String extension, boolean imported,
+                        @JsonProperty("modified_at") long modifiedAt) {}
 
     public record ImportRequest(
             @NotBlank @Size(max = 255, message = "视频相对路径超过 255 个字符") String path,

@@ -57,6 +57,7 @@ const CoursePlayPage = () => {
   const [totalHours, setTotalHours] = useState<any>([]);
   const [playingTime, setPlayingTime] = useState(0);
   const [watchedSeconds, setWatchedSeconds] = useState(0);
+  const [lockedHours, setLockedHours] = useState<number[]>([]);
   const [chapters, setChapters] = useState<ChapterModel[]>([]);
   const [hours, setHours] = useState<LocalCourseHour | null>(null);
   const [learnHourRecord, setLearnHourRecord] =
@@ -101,26 +102,16 @@ const CoursePlayPage = () => {
 
   const getCourse = () => {
     Course.detail(Number(params.courseId)).then((res: any) => {
+      if (Number(window.location.pathname.split('/')[2]) !== Number(params.courseId) ||
+          Number(window.location.pathname.split('/')[4]) !== Number(params.hourId)) return;
       setChapters(res.data.chapters);
+      setLockedHours(res.data.locked_hour_ids || []);
       setHours(res.data.hours);
       if (res.data.learn_hour_records) {
         setLearnHourRecord(res.data.learn_hour_records);
       }
-      let totalHours: any = [];
-      if (res.data.chapters.length === 0) {
-        setTotalHours(res.data.hours[0]);
-        totalHours = res.data.hours[0];
-      } else if (res.data.chapters.length > 0) {
-        const arr: any = [];
-        for (let key in res.data.hours) {
-          res.data.hours[key].map((item: any) => {
-            arr.push(item);
-          });
-        }
-        setTotalHours(arr);
-        totalHours = arr;
-      }
-      //判断是否是最后的课时
+      const totalHours = res.data.ordered_hours || [];
+      setTotalHours(totalHours);
       const index = totalHours.findIndex(
         (i: any) => i.id === Number(params.hourId),
       );
@@ -154,6 +145,10 @@ const CoursePlayPage = () => {
       })
       .catch((e) => {
         setLoading(false);
+        if (Number(window.location.pathname.split('/')[2]) === Number(params.courseId) &&
+            Number(window.location.pathname.split('/')[4]) === Number(params.hourId)) {
+          navigate(`/course/${params.courseId}`, { replace: true });
+        }
       });
   };
 
@@ -197,6 +192,7 @@ const CoursePlayPage = () => {
       hourId: params.hourId,
       total: params.total, initial: systemConfig.playerAutoResume === false ? 0 : params.pos,
       completed: params.completed ? params.total : params.maximum,
+      onCompleted: getCourse,
       allowSeek: !systemConfig.playerIsDisabledDrag,
       allowSpeed: !systemConfig.playerIsDisabledSpeed,
       notify: (text) => Toast.show(text),
@@ -216,11 +212,14 @@ const CoursePlayPage = () => {
     if (index === totalHours.length - 1) {
       setIsLastpage(true);
       Toast.show("已经是最后一节了！");
-    } else if (index < totalHours.length - 1) {
+    } else if (index >= 0 && index < totalHours.length - 1) {
       setIsLastpage(false);
-      navigate(`/course/${params.courseId}/hour/${totalHours[index + 1].id}`, {
-        replace: true,
-      });
+      const nextId = totalHours[index + 1].id;
+      Course.play(Number(params.courseId), nextId).then(() => {
+        if (Number(window.location.pathname.split('/')[2]) !== Number(params.courseId) ||
+            Number(window.location.pathname.split('/')[4]) !== Number(params.hourId)) return;
+        navigate(`/course/${params.courseId}/hour/${nextId}`, { replace: true });
+      }).catch(() => {});
     }
   };
 
@@ -273,8 +272,6 @@ const CoursePlayPage = () => {
                 <div
                   className={styles["alert-button"]}
                   onClick={() => {
-                    setLastSeeValue({});
-                    setPlayendedStatus(false);
                     goNextVideo();
                   }}
                 >
@@ -293,6 +290,7 @@ const CoursePlayPage = () => {
               <div key={item.id} className={styles["hours-it"]}>
                 <HourCompenent
                   id={item.id}
+                  locked={lockedHours.includes(item.id)}
                   cid={item.course_id}
                   title={item.title}
                   record={learnHourRecord[item.id]}
@@ -315,6 +313,7 @@ const CoursePlayPage = () => {
                   <div key={it.id} className={styles["hours-it"]}>
                     <HourCompenent
                       id={it.id}
+                      locked={lockedHours.includes(it.id)}
                       cid={item.course_id}
                       title={it.title}
                       record={learnHourRecord[it.id]}

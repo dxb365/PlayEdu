@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import styles from "./hour.module.scss";
 import { durationFormat } from "../../../utils/index";
+import { Toast } from "antd-mobile";
 
 interface PropInterface {
   id: number;
@@ -9,6 +10,7 @@ interface PropInterface {
   title: string;
   duration: number;
   record: any;
+  locked?: boolean;
   onSuccess: (cid: number, id: number) => void;
 }
 
@@ -19,6 +21,7 @@ export const HourCompenent: React.FC<PropInterface> = ({
   title,
   duration,
   record,
+  locked = false,
   onSuccess,
 }) => {
   const [userProgress, setUserProgress] = useState(0);
@@ -34,8 +37,13 @@ export const HourCompenent: React.FC<PropInterface> = ({
       <div
         className={styles["item"]}
         onClick={() => {
+          if (locked) {
+            Toast.show("请先学完前面的课时");
+            return;
+          }
           onSuccess(cid, id);
         }}
+        aria-disabled={locked}
       >
         <div className={styles["top-item"]}>
           <div className="d-flex">
@@ -47,7 +55,8 @@ export const HourCompenent: React.FC<PropInterface> = ({
               <span>学习中</span>
             </div>
           )}
-          {vid !== id && userProgress === 0 && <div className={styles["studying"]}>未学习</div>}
+          {locked && <div className={styles["studying"]}>🔒 待解锁</div>}
+          {!locked && vid !== id && userProgress === 0 && <div className={styles["studying"]}>未学习</div>}
           {vid !== id && userProgress > 0 && userProgress < 100 && (
             <div className={styles["studying"]}>
               <span>

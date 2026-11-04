@@ -4,8 +4,20 @@ export function nasLibraryStatus() {
   return client.get("/backend/v1/nas-video/status", {});
 }
 
-export function nasLibraryBrowse(path: string, page: number, name: string) {
-  return client.get("/backend/v1/nas-video/browse", { path, page, name, size: 50 });
+export function nasLibraryBrowse(path: string, page: number, name: string,
+  sortField = "name", sortOrder = "asc") {
+  return client.get("/backend/v1/nas-video/browse", {
+    path, page, name, size: 200, sort_field: sortField, sort_order: sortOrder,
+  });
+}
+
+export function bulkVideos(operation: "move" | "copy" | "categories", ids: number[], categoryIds: number[]) {
+  return client.request({
+    method: "POST",
+    url: "/backend/v1/resource/bulk",
+    timeout: 120000,
+    data: { operation, ids, category_ids: categoryIds },
+  });
 }
 
 export function importNasVideo(path: string, categoryIds: number[]) {
@@ -74,8 +86,11 @@ export function destroyResource(id: number) {
 }
 
 export function destroyResourceMulti(ids: number[]) {
-  return client.post(`/backend/v1/resource/destroy-multi`, {
-    ids: ids,
+  return client.request({
+    method: "POST",
+    url: "/backend/v1/resource/destroy-multi",
+    timeout: 120000,
+    data: { ids },
   });
 }
 

@@ -62,12 +62,17 @@ with tempfile.TemporaryDirectory(prefix='playedu-nas-smoke-') as folder:
     subprocess.run(compose + ['config', '--quiet'], check=True)
     try:
         subprocess.run(['docker', 'run', '--rm', '--entrypoint', '/usr/bin/ffmpeg',
-            '-v', str(library) + ':/fixtures', 'playedu-teaching-api:nas-v1', '-v', 'error',
+            '-v', str(library) + ':/fixtures', 'playedu-teaching-api:controls-v1', '-v', 'error',
             '-f', 'lavfi', '-i', 'testsrc2=size=320x180:rate=12', '-t', '20',
             '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
             '/fixtures/章节/第一课.mp4'], check=True)
         shutil.copy(library / '章节/第一课.mp4', library / '界面测试.mp4')
         (library / '损坏视频.mp4').write_bytes(b'invalid video fixture')
+        (library / '批量选择').mkdir()
+        for index in range(201):
+            destination = library / '批量选择' / f'批量{index:03}.mp4'
+            shutil.copyfile(library / '章节/第一课.mp4', destination)
+            os.utime(destination, (1700000000 + 200 - index, 1700000000 + 200 - index))
         sources = {str(p.relative_to(library)): hashlib.sha256(p.read_bytes()).hexdigest()
                    for p in library.rglob('*.mp4') if not p.is_symlink()}
         subprocess.run(compose + ['up', '-d'], check=True)
@@ -86,6 +91,14 @@ with tempfile.TemporaryDirectory(prefix='playedu-nas-smoke-') as folder:
         listing = api('/backend/v1/nas-video/browse', admin)['entries']
         assert not any(item['name'] == 'outside.mp4' for item in listing)
         assert any(item['name'] == '章节' and item['directory'] for item in listing)
+        for field, order, expected in (('name', 'asc', '批量000.mp4'),
+                ('name', 'desc', '批量200.mp4'), ('modified_at', 'asc', '批量200.mp4'),
+                ('modified_at', 'desc', '批量000.mp4')):
+            query = urllib.parse.urlencode({'path': '批量选择', 'size': 200,
+                'sort_field': field, 'sort_order': order})
+            sorted_listing = api('/backend/v1/nas-video/browse?' + query, admin)
+            assert sorted_listing['entries'][0]['name'] == expected
+            assert len(sorted_listing['entries']) == 200 and sorted_listing['total'] == 201
         for invalid in ('../etc/passwd.mp4', '/etc/passwd', 'outside.mp4'):
             status, _, body = request(base + '/backend/v1/nas-video/import', admin,
                 {'path': invalid, 'category_ids': []})
@@ -130,6 +143,26 @@ with tempfile.TemporaryDirectory(prefix='playedu-nas-smoke-') as folder:
         fixture_file = path / 'browser-fixture.json'
         fixture_file.write_text(json.dumps(fixture), encoding='utf-8')
         subprocess.run(['node', str(root / 'scripts/smoke-nas-browser.mjs'), str(fixture_file)], check=True)
+        subprocess.run(compose + ['stop', 'api'], check=True)
+        database_id = subprocess.check_output(compose + ['ps', '-q', 'db'], text=True).strip()
+        assert database_id and isinstance(entry['id'], int) and entry['id'] > 0
+        legacy_sql = ('ALTER TABLE resource DROP COLUMN updated_at; '
+            "UPDATE resource SET created_at='2020-01-02 03:04:05' WHERE id=" + str(entry['id']) + ';')
+        subprocess.run(['docker', 'exec', '-e', 'MYSQL_PWD=ci-only-database-password',
+            database_id, 'mysql', '-u', 'root', '-D', 'playedu', '-e', legacy_sql], check=True)
+        subprocess.run(compose + ['start', 'api'], check=True)
+        for attempt in range(100):
+            try:
+                admin = api('/backend/v1/auth/login', data={'email': 'admin@playedu.xyz', 'password': 'playedu'})['token']
+                migrated = api('/backend/v1/resource/' + str(entry['id']), admin)['resources']
+                assert migrated['updated_at'] == migrated['created_at']
+                assert str(migrated['created_at']).startswith('2020-')
+                break
+            except (OSError, ValueError, AssertionError, KeyError):
+                time.sleep(2)
+        else:
+            raise AssertionError('Legacy resource modification timestamps were not backfilled')
+        print('Legacy migration check passed: historical creation time preserved as modification time.')
         api('/backend/v1/resource/' + str(entry['id']), admin, method='DELETE')
         assert request(url)[0] == 404
         assert sources == {str(p.relative_to(library)): hashlib.sha256(p.read_bytes()).hexdigest()
