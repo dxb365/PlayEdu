@@ -16,9 +16,12 @@
 package xyz.playedu.api.request.backend;
 
 import java.util.List;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
 public class ResourceDestroyMultiRequest {
+    @NotEmpty @Size(max = 200)
     private List<Integer> ids;
 }

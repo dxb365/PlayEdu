@@ -14,6 +14,7 @@
         <result property="disk" column="disk" jdbcType="VARCHAR"/>
         <result property="path" column="path" jdbcType="VARCHAR"/>
         <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+        <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
         <result property="parentId" column="parent_id" jdbcType="INTEGER"/>
         <result property="isHidden" column="is_hidden" jdbcType="TINYINT"/>
     </resultMap>
@@ -22,12 +23,12 @@
         id
         ,admin_id,type,
         name,extension,size,
-        disk,path,created_at,parent_id,
+        disk,path,created_at,updated_at,parent_id,
         is_hidden
     </sql>
 
     <select id="paginate" resultType="xyz.playedu.resource.domain.Resource">
-        SELECT `resource`.*
+        SELECT DISTINCT `resource`.*
         FROM `resource`
         <choose>
             <when test="categoryIds != null and !categoryIds.isEmpty()">
@@ -69,6 +70,12 @@
         </if>
         <if test="sortAlgo == 'asc'">
             <choose>
+                <when test="sortField == 'name'">
+                    ORDER BY `resource`.`name` ASC, `resource`.`id` ASC
+                </when>
+                <when test="sortField == 'updated_at'">
+                    ORDER BY `resource`.`updated_at` ASC, `resource`.`id` ASC
+                </when>
                 <when test="sortField == 'size'">
                     ORDER BY `resource`.`size` ASC
                 </when>
@@ -82,6 +89,12 @@
         </if>
         <if test="sortAlgo != 'asc'">
             <choose>
+                <when test="sortField == 'name'">
+                    ORDER BY `resource`.`name` DESC, `resource`.`id` DESC
+                </when>
+                <when test="sortField == 'updated_at'">
+                    ORDER BY `resource`.`updated_at` DESC, `resource`.`id` DESC
+                </when>
                 <when test="sortField == 'size'">
                     ORDER BY `resource`.`size` DESC
                 </when>
@@ -97,7 +110,7 @@
     </select>
 
     <select id="paginateCount" resultType="java.lang.Long">
-        SELECT count(1)
+        SELECT count(DISTINCT `resource`.`id`)
         FROM `resource`
         <choose>
             <when test="categoryIds != null and !categoryIds.isEmpty()">

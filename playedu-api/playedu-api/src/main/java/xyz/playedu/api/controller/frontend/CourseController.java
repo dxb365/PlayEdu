@@ -37,12 +37,13 @@ import xyz.playedu.resource.service.ResourceService;
 @RestController
 @RequestMapping("/api/v1/course")
 public class CourseController {
+    @Autowired private xyz.playedu.api.service.SequentialLearningService sequence;
 
     @Autowired private CourseService courseService;
 
     @Autowired private CourseChapterService chapterService;
 
-    @Autowired private CourseHourService hourService;
+
 
     @Autowired private CourseAttachmentService attachmentService;
 
@@ -59,7 +60,7 @@ public class CourseController {
     public JsonResponse detail(@PathVariable(name = "id") Integer id) {
         Course course = courseService.findOrFail(id);
 
-        List<CourseHour> courseHours = hourService.getHoursByCourseId(course.getId());
+        List<CourseHour> courseHours = sequence.orderedHours(course.getId());
 
         List<Integer> rids = new ArrayList<>();
         rids.add(course.getThumb());
@@ -86,6 +87,8 @@ public class CourseController {
 
         HashMap<String, Object> data = new HashMap<>();
         data.put("course", course);
+        data.put("ordered_hours", courseHours);
+        data.put("locked_hour_ids", sequence.lockedHourIds(FCtx.getId(), id));
         data.put("chapters", chapterService.getChaptersByCourseId(course.getId()));
         data.put(
                 "hours",

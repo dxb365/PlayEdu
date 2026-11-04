@@ -33,6 +33,7 @@ public class TeachingSetup implements CommandLineRunner {
             + "PRIMARY KEY(user_id,course_id,hour_id), INDEX user_latest(user_id,updated_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         addConfig("player.disabled_speed", "禁止倍速播放", "0");
         addConfig("player.auto_resume", "自动恢复上次学习", "1");
+        addConfig("player.sequential_learning", "按顺序学习", "0");
         seedStorage("s3.endpoint", "TEACHING_S3_PUBLIC_ENDPOINT");
         seedStorage("s3.access_key", "TEACHING_S3_ACCESS_KEY");
         seedStorage("s3.secret_key", "TEACHING_S3_SECRET_KEY");

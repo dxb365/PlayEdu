@@ -55,6 +55,7 @@ public class SystemController {
         // Teaching customization: separate controls for seeking, speed and resume.
         data.put("player-disabled-speed", configs.getOrDefault("player.disabled_speed", "0"));
         data.put("player-auto-resume", configs.getOrDefault("player.auto_resume", "1"));
+        data.put("player-sequential-learning", configs.getOrDefault("player.sequential_learning", "0"));
 
         data.put("ldap-enabled", configs.get(ConfigConstant.LDAP_ENABLED));
 

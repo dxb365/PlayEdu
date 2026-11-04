@@ -61,6 +61,9 @@ public class Resource implements Serializable {
     @JsonProperty("created_at")
     private Date createdAt;
 
+    @JsonProperty("updated_at")
+    private Date updatedAt;
+
     /** 所属素材 */
     @JsonProperty("parent_id")
     private Integer parentId;

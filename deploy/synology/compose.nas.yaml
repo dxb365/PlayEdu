@@ -33,7 +33,7 @@ services:
       - ./storage:/data
     logging: *logging
   api:
-    image: playedu-teaching-api:nas-v1
+    image: playedu-teaching-api:controls-v1
     restart: unless-stopped
     environment:
       DB_HOST: db
@@ -68,7 +68,7 @@ services:
         condition: service_started
     logging: *logging
   web:
-    image: playedu-teaching-web:nas-v1
+    image: playedu-teaching-web:controls-v1
     restart: unless-stopped
     ports:
       - '${ADMIN_BIND_IP:-127.0.0.1}:${ADMIN_PORT:-9900}:8081'

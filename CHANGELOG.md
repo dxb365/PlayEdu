@@ -1,5 +1,8 @@
 ## Teaching NAS
 
+- Add bulk video management and sorting.
+- Add sequential learning control.
+
 - Add read-only NAS video references.
 
 ## 2.3

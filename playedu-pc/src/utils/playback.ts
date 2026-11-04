@@ -4,6 +4,7 @@ import { getToken } from './index';
 type Options = {
   courseId: number; hourId: number; total: number; initial: number; completed: number;
   allowSeek: boolean; allowSpeed: boolean; notify: (text: string) => void;
+  onCompleted?: () => void;
 };
 const apiUrl = (path: string) => (import.meta.env.VITE_APP_URL || '').replace(/\/$/, '') + path;
 export async function latestPlayback() {
@@ -40,6 +41,7 @@ export function bindLearningPlayer(player: any, options: Options) {
       const body = await response.json();
       if (!response.ok || body.code !== 0) throw new Error('save failed');
       failed = false;
+      if (!disposed && duration >= options.total) options.onCompleted?.();
     }).catch(() => { failed = true; if (!disposed && document.visibilityState !== 'hidden') notice('学习进度暂未同步，请检查网络'); });
   };
   const restore = () => {
