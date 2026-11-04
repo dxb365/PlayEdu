@@ -1,5 +1,7 @@
 ## Teaching NAS
 
+- Add saved course hour ordering.
+
 - Add bulk video management and sorting.
 - Add sequential learning control.
 

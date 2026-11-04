@@ -27,6 +27,8 @@ import xyz.playedu.api.event.CourseHourDestroyEvent;
 import xyz.playedu.api.request.backend.CourseHourMultiRequest;
 import xyz.playedu.api.request.backend.CourseHourRequest;
 import xyz.playedu.api.request.backend.CourseHourSortRequest;
+import xyz.playedu.api.request.backend.CourseHourAutoSortRequest;
+import xyz.playedu.api.service.CourseHourOrderingService;
 import xyz.playedu.common.annotation.BackendPermission;
 import xyz.playedu.common.annotation.Log;
 import xyz.playedu.common.constant.BPermissionConstant;
@@ -56,6 +58,17 @@ public class CourseHourController {
     @Autowired private CourseChapterService chapterService;
 
     @Autowired private ApplicationContext ctx;
+
+    @Autowired private CourseHourOrderingService ordering;
+
+    @BackendPermission(slug = BPermissionConstant.COURSE)
+    @PutMapping("/update/auto-sort")
+    @Log(title = "线上课-课时-自动排序", businessType = BusinessTypeConstant.UPDATE)
+    public JsonResponse autoSort(@PathVariable(name = "courseId") Integer courseId,
+            @RequestBody @Validated CourseHourAutoSortRequest request) throws NotFoundException {
+        ordering.sort(courseId, request);
+        return JsonResponse.success();
+    }
 
     @BackendPermission(slug = BPermissionConstant.COURSE)
     @GetMapping("/create")

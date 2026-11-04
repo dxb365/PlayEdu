@@ -62,7 +62,7 @@ with tempfile.TemporaryDirectory(prefix='playedu-nas-smoke-') as folder:
     subprocess.run(compose + ['config', '--quiet'], check=True)
     try:
         subprocess.run(['docker', 'run', '--rm', '--entrypoint', '/usr/bin/ffmpeg',
-            '-v', str(library) + ':/fixtures', 'playedu-teaching-api:controls-v1', '-v', 'error',
+            '-v', str(library) + ':/fixtures', 'playedu-teaching-api:hours-v1', '-v', 'error',
             '-f', 'lavfi', '-i', 'testsrc2=size=320x180:rate=12', '-t', '20',
             '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
             '/fixtures/章节/第一课.mp4'], check=True)

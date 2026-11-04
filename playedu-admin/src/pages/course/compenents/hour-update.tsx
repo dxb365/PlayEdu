@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Button, Drawer, Form, Input, Modal, message, Spin } from "antd";
+import { Button, Drawer, Form, Input, Modal, message, Spin, Select, Space } from "antd";
 import styles from "./hour-update.module.less";
 import { course, courseHour, courseChapter } from "../../../api/index";
 import { SelectResource } from "../../../compenents";
@@ -28,9 +28,13 @@ export const CourseHourUpdate: React.FC<PropInterface> = ({
   const [videoVisible, setVideoVisible] = useState<boolean>(false);
   const [treeData, setTreeData] = useState<CourseHourModel[]>([]);
   const [addvideoCurrent, setAddvideoCurrent] = useState(0);
+  const [sortMode, setSortMode] = useState("name:asc");
+  const [sortChapter, setSortChapter] = useState<number | undefined>();
+  const [sorting, setSorting] = useState(false);
 
   useEffect(() => {
     setInit(true);
+    setSortChapter(undefined);
     if (id === 0) {
       return;
     }
@@ -45,7 +49,7 @@ export const CourseHourUpdate: React.FC<PropInterface> = ({
   }, [id, open]);
 
   const getDetail = () => {
-    course.course(id).then((res: any) => {
+    return course.course(id).then((res: any) => {
       let chapterType = res.data.chapters.length > 0 ? 1 : 0;
       setChapterType(chapterType);
       if (chapterType === 1) {
@@ -345,6 +349,27 @@ export const CourseHourUpdate: React.FC<PropInterface> = ({
     return newArr;
   };
 
+  const applySort = () => {
+    const [field, order] = sortMode.split(":");
+    confirm({
+      title: "调整课时顺序",
+      content: "确认按所选方式排列并保存？学员将使用新顺序学习，章节顺序保持原值。",
+      okText: "排序并保存",
+      cancelText: "取消",
+      centered: true,
+      async onOk() {
+        setSorting(true);
+        try {
+          await courseHour.autoSortCourseHours(id, field, order, sortChapter);
+          await getDetail();
+          message.success("课时顺序已保存");
+        } finally {
+          setSorting(false);
+        }
+      },
+    });
+  };
+
   return (
     <>
       {open ? (
@@ -359,6 +384,43 @@ export const CourseHourUpdate: React.FC<PropInterface> = ({
             <p>1.线上课课时调整及时生效，操作不可逆，请谨慎操作。</p>
             <p>2.课时调整后，已有学习进度会在学员学习时重新计算。</p>
           </div>
+          <Space wrap style={{ marginTop: 20, marginLeft: 26 }}>
+            {chapterType === 1 && (
+              <Select
+                aria-label="排序范围"
+                style={{ width: 180 }}
+                value={sortChapter ?? -1}
+                disabled={init || sorting}
+                onChange={(value) => setSortChapter(value === -1 ? undefined : value)}
+                options={[
+                  { value: -1, label: "全部章节（章内排序）" },
+                  ...chapters.filter((item) => item.id).map((item, index) => ({
+                    value: Number(item.id), label: `章节${index + 1}：${item.name}`,
+                  })),
+                ]}
+              />
+            )}
+            <Select
+              aria-label="课时排序方式"
+              style={{ width: 190 }}
+              value={sortMode}
+              disabled={init || sorting}
+              onChange={setSortMode}
+              options={[
+                { value: "name:asc", label: "名称：升序（小到大）" },
+                { value: "name:desc", label: "名称：降序（大到小）" },
+                { value: "modified_at:asc", label: "修改时间：从早到晚" },
+                { value: "modified_at:desc", label: "修改时间：从晚到早" },
+              ]}
+            />
+            <Button type="primary" loading={sorting}
+              disabled={init || (chapterType === 0 ? treeData.length < 2 :
+                !chapters.some((item) => (sortChapter === undefined || item.id === sortChapter) && item.hours.length > 1))}
+              onClick={applySort}>排序并保存</Button>
+          </Space>
+          <p style={{ margin: "10px 26px 0", color: "#666" }}>
+            名称按数字顺序排列。NAS 视频使用原文件修改时间，上传视频使用资源修改时间。
+          </p>
           <div className="float-left mt-24">
             <SelectResource
               defaultKeys={
