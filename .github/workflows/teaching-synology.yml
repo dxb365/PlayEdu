@@ -1,7 +1,7 @@
 name: Build teaching site for Synology
 on:
   push:
-    branches: [main, teaching-synology, teaching-auto-tls, nas-video-library, bulk-video-controls]
+    branches: [main, teaching-synology, teaching-auto-tls, nas-video-library, bulk-video-controls, course-hour-ordering]
   pull_request:
   workflow_dispatch:
 concurrency:
@@ -72,8 +72,8 @@ jobs:
         run: |
           docker build -f deploy/synology/Dockerfile --target api -t playedu-teaching-api:local .
           docker build -f deploy/synology/Dockerfile --target web -t playedu-teaching-web:local .
-          docker tag playedu-teaching-api:local playedu-teaching-api:controls-v1
-          docker tag playedu-teaching-web:local playedu-teaching-web:controls-v1
+          docker tag playedu-teaching-api:local playedu-teaching-api:hours-v1
+          docker tag playedu-teaching-web:local playedu-teaching-web:hours-v1
           docker pull mysql:8.4
           docker pull chrislusf/seaweedfs:4.51
       - name: Verify container startup, TLS and private video storage

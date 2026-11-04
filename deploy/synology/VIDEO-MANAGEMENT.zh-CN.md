@@ -4,9 +4,9 @@
 
 ## 更新已有群晖项目
 
-1. 在 Container Manager 的映像页，导入 playedu-teaching-api-controls-v1.tar.gz 和 playedu-teaching-web-controls-v1.tar.gz。导入后确认两项镜像均有 controls-v1 标签。
+1. 在 Container Manager 的映像页，导入 playedu-teaching-api-hours-v1.tar.gz 和 playedu-teaching-web-hours-v1.tar.gz。导入后确认两项镜像均有 hours-v1 标签。
 2. 备份原 playedu-teaching 项目的 YAML，并在项目停止后备份数据库。
-3. 在原项目 YAML 中，只将 API 镜像值改为 playedu-teaching-api:controls-v1，将 web 镜像值改为 playedu-teaching-web:controls-v1，然后保存、构建并启动。
+3. 在原项目 YAML 中，只将 API 镜像值改为 playedu-teaching-api:hours-v1，将 web 镜像值改为 playedu-teaching-web:hours-v1，然后保存、构建并启动。
 4. 原项目中已经配置的 HTTPS 9900、端口、目录挂载、证书和自动续期设置继续使用原值。若已部署外网管理入口，更新时请使用第 3 步的两行镜像替换方式。
 5. 刷新管理后台。网页使用 Ctrl+F5，安卓 App 重新打开。
 
@@ -19,6 +19,10 @@
 批量复制在目标分类建立新的资源引用，名称增加“（副本）”。视频内容继续共用原文件。删除仍被课程使用的视频会被拦截，需要先调整课程引用。NAS 原文件按只读方式使用。
 
 ## 排序
+
+在“课程中心 → 线上课 → 更多 → 课时”中，课时管理顶部提供名称升序、名称降序、修改时间从早到晚、修改时间从晚到早。点击“排序并保存”并确认后立即保存，重新打开和学员目录采用该顺序。名称中的数字按数值比较，例如第2课排在第10课之前。
+
+有章节时，可选择全部章节或指定章节。排序只调整章节内部的课时，不改变章节顺序或课时所属章节。NAS 视频使用原文件修改时间；上传视频使用资源修改时间。读取不到原文件时会提示错误并保留已有顺序。调整顺序保留课时编号和学习记录，也会改变按顺序学习的先后关系。
 
 NAS 视频库按文件名称或文件自身修改时间排序。资源列表按名称或资源修改时间排序，两者都有升序和降序选项。
 

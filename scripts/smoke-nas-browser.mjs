@@ -158,6 +158,36 @@ try {
     ],
   });
   const courseList = await api('/backend/v1/course/index');
+  await api('/backend/v1/course/create', {
+    title: 'CI课时排序测试', thumb: 0, short_desc: 'ordering fixture',
+    is_show: 1, is_required: 0, dep_ids: [], category_ids: [], chapters: [],
+    hours: [
+      { name: '第10课', type: 'VIDEO', duration: 20, rid: fixture.resourceId },
+      { name: '第2课', type: 'VIDEO', duration: 20, rid: interfaceResource.id },
+    ],
+  });
+  const orderingCourse = (await api('/backend/v1/course/index')).data.find(item => item.title === 'CI课时排序测试');
+  assert(orderingCourse);
+  const orderingPath = '/backend/v1/course/' + orderingCourse.id;
+  const originalHours = (await api(orderingPath)).hours['0'];
+  await admin.goto('http://127.0.0.1:9900/course');
+  await admin.getByRole('row').filter({ hasText: 'CI课时排序测试' }).getByRole('button', { name: '更多', exact: true }).hover();
+  await admin.getByRole('button', { name: '课时', exact: true }).click();
+  const hoursDrawer = admin.getByRole('dialog', { name: '课时管理' });
+  await hoursDrawer.getByRole('button', { name: '排序并保存', exact: true }).click();
+  await admin.getByRole('dialog', { name: '调整课时顺序' }).getByRole('button', { name: '排序并保存', exact: true }).click();
+  await admin.getByText('课时顺序已保存', { exact: true }).waitFor();
+  assert.deepEqual((await api(orderingPath)).hours['0'].map(item => item.title), ['第2课', '第10课']);
+  await admin.screenshot({ path: 'nas-browser-results/course-hour-ordering.png', fullPage: true });
+  await hoursDrawer.locator('.ant-drawer-close').click();
+  for (const [field, order] of [['name', 'desc'], ['modified_at', 'asc'], ['modified_at', 'desc']]) {
+    await api(orderingPath + '/hour/update/auto-sort', { field, order }, fixture.adminToken, 'PUT');
+    const sorted = (await api(orderingPath)).hours['0'];
+    assert.deepEqual(sorted.map(item => item.id).sort((a,b) => a-b), originalHours.map(item => item.id).sort((a,b) => a-b));
+    if (field === 'name') assert.deepEqual(sorted.map(item => item.title), ['第10课', '第2课']);
+  }
+  await denied(orderingPath + '/hour/update/auto-sort', { field: 'invalid', order: 'asc' }, fixture.adminToken, 'PUT');
+  await api(orderingPath, undefined, fixture.adminToken, 'DELETE');
   const course = courseList.data.find(item => item.title === 'NAS 原目录测试课程');
   assert(course);
   const courseDetail = await api('/backend/v1/course/' + course.id);

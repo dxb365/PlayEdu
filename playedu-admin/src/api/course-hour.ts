@@ -64,3 +64,10 @@ export function transCourseHour(courseId: number, ids: number[]) {
     ids: ids,
   });
 }
+
+export function autoSortCourseHours(courseId: number, field: string, order: string,
+  chapterId?: number) {
+  return client.put(`/backend/v1/course/${courseId}/hour/update/auto-sort`, {
+    field, order, chapter_id: chapterId,
+  });
+}
