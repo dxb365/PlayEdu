@@ -86,8 +86,11 @@ export function destroyResource(id: number) {
 }
 
 export function destroyResourceMulti(ids: number[]) {
-  return client.post(`/backend/v1/resource/destroy-multi`, {
-    ids: ids,
+  return client.request({
+    method: "POST",
+    url: "/backend/v1/resource/destroy-multi",
+    timeout: 120000,
+    data: { ids },
   });
 }
 

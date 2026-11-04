@@ -143,6 +143,26 @@ with tempfile.TemporaryDirectory(prefix='playedu-nas-smoke-') as folder:
         fixture_file = path / 'browser-fixture.json'
         fixture_file.write_text(json.dumps(fixture), encoding='utf-8')
         subprocess.run(['node', str(root / 'scripts/smoke-nas-browser.mjs'), str(fixture_file)], check=True)
+        subprocess.run(compose + ['stop', 'api'], check=True)
+        database_id = subprocess.check_output(compose + ['ps', '-q', 'db'], text=True).strip()
+        assert database_id and isinstance(entry['id'], int) and entry['id'] > 0
+        legacy_sql = ('ALTER TABLE resource DROP COLUMN updated_at; '
+            "UPDATE resource SET created_at='2020-01-02 03:04:05' WHERE id=" + str(entry['id']) + ';')
+        subprocess.run(['docker', 'exec', '-e', 'MYSQL_PWD=ci-only-database-password',
+            database_id, 'mysql', '-u', 'root', '-D', 'playedu', '-e', legacy_sql], check=True)
+        subprocess.run(compose + ['start', 'api'], check=True)
+        for attempt in range(100):
+            try:
+                admin = api('/backend/v1/auth/login', data={'email': 'admin@playedu.xyz', 'password': 'playedu'})['token']
+                migrated = api('/backend/v1/resource/' + str(entry['id']), admin)['resources']
+                assert migrated['updated_at'] == migrated['created_at']
+                assert str(migrated['created_at']).startswith('2020-')
+                break
+            except (OSError, ValueError, AssertionError, KeyError):
+                time.sleep(2)
+        else:
+            raise AssertionError('Legacy resource modification timestamps were not backfilled')
+        print('Legacy migration check passed: historical creation time preserved as modification time.')
         api('/backend/v1/resource/' + str(entry['id']), admin, method='DELETE')
         assert request(url)[0] == 404
         assert sources == {str(p.relative_to(library)): hashlib.sha256(p.read_bytes()).hexdigest()
