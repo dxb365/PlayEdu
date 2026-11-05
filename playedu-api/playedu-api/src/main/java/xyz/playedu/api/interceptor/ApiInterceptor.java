@@ -17,6 +17,7 @@ package xyz.playedu.api.interceptor;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
@@ -33,6 +34,9 @@ import xyz.playedu.common.util.IpUtil;
 @Slf4j
 @Order(10)
 public class ApiInterceptor implements HandlerInterceptor {
+
+    private static final Set<String> UPLOAD_LIMIT_PATHS = Set.of(
+            "/backend/v1/upload/minio/upload-id", "/backend/v1/upload/minio/merge-file");
 
     @Autowired private RateLimiterService rateLimiterService;
 
@@ -54,7 +58,8 @@ public class ApiInterceptor implements HandlerInterceptor {
         }
 
         // 限流判断
-        String reqCountKey = "api-limiter:" + IpUtil.getIpAddress();
+        String reqCountKey = (UPLOAD_LIMIT_PATHS.contains(path)
+                ? "api-upload-limiter:" : "api-limiter:") + IpUtil.getIpAddress();
         Long reqCount = rateLimiterService.current(reqCountKey, playEduConfig.getLimiterDuration());
         long limitCount = playEduConfig.getLimiterLimit();
         long limitRemaining = limitCount - reqCount;
