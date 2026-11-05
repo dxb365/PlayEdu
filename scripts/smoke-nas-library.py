@@ -62,7 +62,7 @@ with tempfile.TemporaryDirectory(prefix='playedu-nas-smoke-') as folder:
     subprocess.run(compose + ['config', '--quiet'], check=True)
     try:
         subprocess.run(['docker', 'run', '--rm', '--entrypoint', '/usr/bin/ffmpeg',
-            '-v', str(library) + ':/fixtures', 'playedu-teaching-api:hours-v1', '-v', 'error',
+            '-v', str(library) + ':/fixtures', 'playedu-teaching-api:uploads-v1', '-v', 'error',
             '-f', 'lavfi', '-i', 'testsrc2=size=320x180:rate=12', '-t', '20',
             '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
             '/fixtures/章节/第一课.mp4'], check=True)
@@ -139,6 +139,7 @@ with tempfile.TemporaryDirectory(prefix='playedu-nas-smoke-') as folder:
         public_key = subprocess.check_output(['openssl', 'x509', '-in', str(path / 'certs/tls.crt'), '-pubkey', '-noout'])
         public_der = subprocess.check_output(['openssl', 'pkey', '-pubin', '-outform', 'DER'], input=public_key)
         fixture = {'adminToken': admin, 'resourceId': entry['id'],
+            'uploadVideoPath': str(library / '章节/第一课.mp4'),
             'certificatePin': base64.b64encode(hashlib.sha256(public_der).digest()).decode()}
         fixture_file = path / 'browser-fixture.json'
         fixture_file.write_text(json.dumps(fixture), encoding='utf-8')

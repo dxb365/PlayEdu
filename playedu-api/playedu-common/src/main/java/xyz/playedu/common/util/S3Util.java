@@ -30,6 +30,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import lombok.SneakyThrows;
@@ -173,10 +174,28 @@ public class S3Util {
     }
 
     public List<PartSummary> listParts(String uploadId, String filename) {
-        ListPartsRequest request =
-                new ListPartsRequest(defaultConfig.getBucket(), filename, uploadId);
-        PartListing partListing = getClient().listParts(request);
-        return partListing.getParts();
+        return listParts(getClient(), uploadId, filename);
+    }
+
+    private List<PartSummary> listParts(AmazonS3 client, String uploadId, String filename) {
+        List<PartSummary> parts = new ArrayList<>();
+        int marker = 0;
+        while (true) {
+            ListPartsRequest request =
+                    new ListPartsRequest(defaultConfig.getBucket(), filename, uploadId)
+                            .withPartNumberMarker(marker)
+                            .withMaxParts(1000);
+            PartListing page = client.listParts(request);
+            parts.addAll(page.getParts());
+            if (!page.isTruncated()) break;
+            Integer nextMarker = page.getNextPartNumberMarker();
+            if (nextMarker == null || nextMarker <= marker) {
+                throw new ServiceException("无法获取完整上传分片，请稍后重试");
+            }
+            marker = nextMarker;
+        }
+        parts.sort(Comparator.comparingInt(PartSummary::getPartNumber));
+        return parts;
     }
 
     public void purgeSegments(String uploadId, String filename) {
@@ -200,19 +219,13 @@ public class S3Util {
     public String merge(String filename, String uploadId) {
         AmazonS3 client = getClient();
 
-        ListPartsRequest listPartsRequest =
-                new ListPartsRequest(defaultConfig.getBucket(), filename, uploadId);
-        PartListing parts = client.listParts(listPartsRequest);
-        if (parts.getParts().isEmpty()) {
+        List<PartSummary> parts = listParts(client, uploadId, filename);
+        if (parts.isEmpty()) {
             throw new ServiceException("没有已上传的分片文件");
         }
 
         List<PartETag> eTags = new ArrayList<>();
-        parts.getParts()
-                .forEach(
-                        item -> {
-                            eTags.add(new PartETag(item.getPartNumber(), item.getETag()));
-                        });
+        parts.forEach(item -> eTags.add(new PartETag(item.getPartNumber(), item.getETag())));
 
         CompleteMultipartUploadRequest request = new CompleteMultipartUploadRequest();
         request.setBucketName(defaultConfig.getBucket());

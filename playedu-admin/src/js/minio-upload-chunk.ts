@@ -22,7 +22,7 @@ export class UploadChunk {
 
   constructor(file: File, uploadId: string, filename: string) {
     this.client = axios.create({
-      timeout: 60000,
+      timeout: 300000,
       withCredentials: false,
     });
     this.file = file;

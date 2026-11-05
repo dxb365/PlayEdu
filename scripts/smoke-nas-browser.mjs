@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 
 const require = createRequire(process.env.NAS_BROWSER_PACKAGE + '/package.json');
 const { chromium } = require('playwright');
@@ -148,6 +149,74 @@ try {
   const resources = await api('/backend/v1/resource/index?type=VIDEO&size=200');
   const interfaceResource = resources.result.data.find(item => item.path === '界面测试.mp4' && !item.name.includes('副本'));
   assert(interfaceResource);
+  const uploadPage = await adminContext.newPage();
+  uploadPage.on('pageerror', error => errors.push(error.message));
+  await uploadPage.goto('http://127.0.0.1:9900/videos');
+  await uploadPage.getByRole('button', { name: '上传视频', exact: true }).click();
+  const uploadDialog = uploadPage.getByRole('dialog', { name: '上传视频', exact: true });
+  const uploadInput = uploadDialog.locator('input[type="file"]');
+  const uploadVideo = fs.readFileSync(fixture.uploadVideoPath);
+  const uploadFiles = Array.from({ length: 101 }, (_, index) => ({
+    name: 'CI上传' + String(index).padStart(3, '0') + '.mp4', mimeType: 'video/mp4', buffer: uploadVideo,
+  }));
+  let uploadStarts = 0;
+  let uploadMerges = 0;
+  uploadPage.on('request', request => {
+    if (request.url().includes('/backend/v1/upload/minio/upload-id?')) uploadStarts++;
+    if (request.url().includes('/backend/v1/upload/minio/merge-file')) uploadMerges++;
+  });
+  await uploadInput.setInputFiles(uploadFiles);
+  await uploadPage.getByText('单次最多上传100个视频', { exact: true }).waitFor();
+  assert.equal(await uploadDialog.locator('tbody tr[data-row-key]').count(), 0);
+  assert.equal(uploadStarts, 0);
+  await uploadPage.evaluate(() => {
+    const originalSize = Object.getOwnPropertyDescriptor(Blob.prototype, 'size').get;
+    Object.defineProperty(File.prototype, 'size', {
+      configurable: true,
+      get() { return this.name === 'CI超限视频.mp4' ? 10 * 1024 ** 3 + 1 : originalSize.call(this); },
+    });
+  });
+  await uploadInput.setInputFiles({ name: 'CI超限视频.mp4', mimeType: 'video/mp4', buffer: uploadVideo });
+  await uploadPage.getByText('CI超限视频.mp4 大小超过10GB', { exact: true }).waitFor();
+  assert.equal(uploadStarts, 0);
+  await uploadPage.evaluate(() => { delete File.prototype.size; });
+  let releaseUploads;
+  const uploadGate = new Promise(resolve => { releaseUploads = resolve; });
+  const uploadRoute = '**/api/backend/v1/upload/minio/upload-id?*';
+  await uploadPage.route(uploadRoute, async route => { await uploadGate; await route.continue(); });
+  try {
+    await uploadInput.setInputFiles(uploadFiles.slice(0, 100));
+    for (let attempt = 0; attempt < 300 && uploadStarts < 10; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    assert.equal(uploadStarts, 10, 'Ten videos can prepare their uploads concurrently');
+    await new Promise(resolve => setTimeout(resolve, 300));
+    assert.equal(uploadStarts, 10, 'Queued videos wait while ten uploads are active');
+    releaseUploads();
+    await uploadDialog.getByText('上传成功', { exact: true }).nth(99).waitFor({ timeout: 180000 });
+    assert.equal(await uploadDialog.getByText('上传成功', { exact: true }).count(), 100);
+    assert.equal(uploadStarts, 100);
+    assert.equal(uploadMerges, 100);
+  } finally {
+    releaseUploads();
+    await uploadPage.unroute(uploadRoute);
+  }
+  const uploaded = await api('/backend/v1/resource/index?type=VIDEO&size=200&name=' + encodeURIComponent('CI上传'));
+  assert.equal(uploaded.result.data.length, 100);
+  assert(uploaded.result.data.every(item => item.disk !== 'nas' && item.size === uploadVideo.length));
+  assert.equal(new Set(uploaded.result.data.map(item => item.path)).size, 100);
+  const uploadDigest = createHash('sha256').update(uploadVideo).digest('hex');
+  const storedDigests = await uploadPage.evaluate(async urls => Promise.all(urls.map(async url => {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Uploaded object unavailable: ' + response.status);
+    const digest = await crypto.subtle.digest('SHA-256', await response.arrayBuffer());
+    return Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, '0')).join('');
+  })), [uploaded.resource_url[uploaded.result.data[0].id], uploaded.resource_url[uploaded.result.data[99].id]]);
+  assert.deepEqual(storedDigests, [uploadDigest, uploadDigest]);
+  await uploadPage.screenshot({ path: 'nas-browser-results/video-100-uploads.png', fullPage: false });
+  await uploadDialog.getByRole('button', { name: /^完\s*成$/ }).click();
+  await uploadDialog.waitFor({ state: 'hidden' });
+  await uploadPage.close();
   await api('/backend/v1/app-config', { data: { 'player.sequential_learning': '0' } }, fixture.adminToken, 'PUT');
   await api('/backend/v1/course/create', {
     title: 'NAS 原目录测试课程', thumb: 0, short_desc: 'isolated CI fixture',
@@ -276,7 +345,7 @@ try {
   await api('/backend/v1/app-config', { data: { 'player.sequential_learning': '0' } }, fixture.adminToken, 'PUT');
   await api('/backend/v1/course/' + course.id, undefined, fixture.adminToken, 'DELETE');
   assert.deepEqual(errors, []);
-  console.log('Browser checks passed: 200-item NAS selection, bulk toolbar/copy/move/categories/deletion, original MP4 preview/seek/pause, desktop and Android resume, ordered learning enforcement/unlock, completion.');
+  console.log('Browser checks passed: 100 real video uploads with ten active tasks, 101-file and over-10GiB rejection, object integrity, 200-item NAS selection, bulk toolbar/copy/move/categories/deletion, original MP4 preview/seek/pause, desktop and Android resume, ordered learning enforcement/unlock, completion.');
 } catch (error) {
   let index = 0;
   for (const current of contexts) {

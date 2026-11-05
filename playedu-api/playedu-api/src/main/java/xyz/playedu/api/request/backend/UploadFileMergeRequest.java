@@ -18,6 +18,8 @@ package xyz.playedu.api.request.backend;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Positive;
 import lombok.Data;
 
 /**
@@ -40,6 +42,8 @@ public class UploadFileMergeRequest {
     private String originalFilename;
 
     @NotNull(message = "请输入size")
+    @Positive(message = "文件大小必须大于0")
+    @Max(value = 10L * 1024 * 1024 * 1024, message = "单个文件最大支持10GB")
     private Long size;
 
     @NotNull(message = "请输入duration")
