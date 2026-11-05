@@ -5,7 +5,7 @@
 ## 升级已有站点
 
 1. 在 Container Manager 停止教学项目。先保留原来的 YAML 配置，并备份教学数据库。
-2. 在“映像 → 操作 → 从文件添加”分别导入 `playedu-teaching-api-hours-v1.tar.gz` 和 `playedu-teaching-web-hours-v1.tar.gz`。完成后应显示 `playedu-teaching-api`、`playedu-teaching-web`，两项标签都是 `hours-v1`。原来的 `local` 标签可以保留。
+2. 在“映像 → 操作 → 从文件添加”分别导入 `playedu-teaching-api-uploads-v1.tar.gz` 和 `playedu-teaching-web-uploads-v1.tar.gz`。完成后应显示 `playedu-teaching-api`、`playedu-teaching-web`，两项标签都是 `uploads-v1`。原来的 `local` 标签可以保留。
 3. 本版本提供完整的 `compose.nas.yaml`。通用配置需要在群晖项目原有的 `.env` 文件中增加一行 `NAS_VIDEO_DIR=/volume1/课程视频`，将右侧改为实际目录。使用已填好目录的个人配置时，无需增加这一行。
 4. 在原项目的“详情 → YAML 配置”中用 NAS 版本的完整内容替换并保存，再启动原项目。项目目录、项目名和原有数据目录保持原值。不要创建第二个空白教学项目，也不要删除 `mysql`、`storage`、`certs`、`acme-state`、`acme-config` 或 `.env`。
 5. 本配置保留 ZeroSSL 自动续期。若原站点使用其他证书机构，请保留原来的 `TEACHING_ACME_SERVER` 和 `TEACHING_ACME_HOME` 两项设置。

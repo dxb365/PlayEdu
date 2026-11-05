@@ -1,5 +1,7 @@
 ## Teaching NAS
 
+- Support 100 video uploads and 10GiB files.
+
 - Add saved course hour ordering.
 
 - Add bulk video management and sorting.

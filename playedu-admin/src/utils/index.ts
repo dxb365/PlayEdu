@@ -62,33 +62,52 @@ export function transformBase64ToBlob(
 
 export function parseVideo(file: File): Promise<VideoParseInfo> {
   return new Promise((resolve, reject) => {
-    let video = document.createElement("video");
-    video.muted = true;
-    video.setAttribute("src", URL.createObjectURL(file));
-    video.setAttribute("autoplay", "autoplay");
-    video.setAttribute("crossOrigin", "anonymous"); //设置跨域 否则toDataURL导出图片失败
-    video.setAttribute("width", "400"); //设置大小，如果不设置，下面的canvas就要按需设置
-    video.setAttribute("height", "300");
-    video.currentTime = 7; //视频时长，一定要设置，不然大概率白屏
-    video.addEventListener("loadeddata", function () {
-      let canvas = document.createElement("canvas"),
-        width = video.width, //canvas的尺寸和图片一样
-        height = video.height;
-      canvas.width = width; //画布大小，默认为视频宽高
-      canvas.height = height;
-      let ctx = canvas.getContext("2d");
-      if (!ctx) {
-        return reject("无法捕获视频帧");
-      }
-      ctx.drawImage(video, 0, 0, width, height); //绘制canvas
-      let dataURL = canvas.toDataURL("image/png"); //转换为base64
+    const video = document.createElement("video");
+    const url = URL.createObjectURL(file);
+    let settled = false;
+    const cleanup = () => {
+      settled = true;
+      clearTimeout(timer);
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
       video.remove();
-      let info: VideoParseInfo = {
-        poster: dataURL,
-        duration: parseInt(video.duration + ""),
-      };
-      return resolve(info);
-    });
+      URL.revokeObjectURL(url);
+    };
+    const fail = () => {
+      if (settled) return;
+      cleanup();
+      reject("无法解析视频，请检查文件后重试");
+    };
+    const timer = setTimeout(fail, 120000);
+    video.muted = true;
+    video.preload = "auto";
+    video.setAttribute("src", url);
+    video.setAttribute("width", "400");
+    video.setAttribute("height", "300");
+    video.addEventListener("error", fail, { once: true });
+    video.addEventListener("loadeddata", function () {
+      if (settled) return;
+      try {
+        const canvas = document.createElement("canvas"),
+          width = video.width,
+          height = video.height;
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { fail(); return; }
+        ctx.drawImage(video, 0, 0, width, height);
+        const info: VideoParseInfo = {
+          poster: canvas.toDataURL("image/png"),
+          duration: Math.floor(video.duration),
+        };
+        if (!Number.isFinite(info.duration)) { fail(); return; }
+        cleanup();
+        resolve(info);
+      } catch {
+        fail();
+      }
+    }, { once: true });
   });
 }
 

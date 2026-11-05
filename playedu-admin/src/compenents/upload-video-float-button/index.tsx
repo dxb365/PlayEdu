@@ -16,6 +16,7 @@ import { generateUUID, parseVideo } from "../../utils";
 import styles from "./index.module.less";
 import { minioMergeVideo, minioUploadId } from "../../api/upload";
 import { UploadChunk } from "../../js/minio-upload-chunk";
+import { videoUploadError, VIDEO_UPLOAD_CONCURRENCY } from "../../js/video-upload-limits";
 import { useDispatch } from "react-redux";
 import { useSelector } from "react-redux";
 import { uploadAction } from "../../store/user/loginUserSlice";
@@ -25,6 +26,9 @@ export const UploadVideoFloatButton = () => {
   const dispatch = useDispatch();
   const [showModal, setShowModal] = useState(false);
   const localFileList = useRef<FileItem[]>([]);
+  const pendingFiles = useRef<FileItem[]>([]);
+  const activeUploads = useRef(0);
+  const generation = useRef(0);
   const intervalId = useRef<number>();
   const intervalId2 = useRef<number>();
   const [successNum, setSuccessNum] = useState(0);
@@ -62,79 +66,97 @@ export const UploadVideoFloatButton = () => {
     }
   }, [uploadStatus]);
 
+  const processQueue = () => {
+    while (activeUploads.current < VIDEO_UPLOAD_CONCURRENCY && pendingFiles.current.length) {
+      const item = pendingFiles.current.shift()!;
+      const currentGeneration = generation.current;
+      activeUploads.current++;
+      performUpload(item, currentGeneration).finally(() => {
+        if (generation.current !== currentGeneration) return;
+        activeUploads.current--;
+        processQueue();
+      });
+    }
+  };
+
+  const performUpload = (item: FileItem, currentGeneration: number) => new Promise<void>((resolve) => {
+    const current = () => generation.current === currentGeneration;
+    const refresh = () => { if (current()) setFileList([...localFileList.current]); };
+    const fail = (error: any) => {
+      item.upload.status = 5;
+      item.upload.handler.uploadStatus = 5;
+      item.upload.remark = typeof error === "string" ? error : "上传失败，请重试";
+      refresh();
+      resolve();
+    };
+    const run = item.upload.handler;
+    run.on("progress", (progress: number) => {
+      item.upload.status = 3;
+      item.upload.progress = Math.min(progress, 99);
+      refresh();
+    });
+    run.on("error", fail);
+    run.on("success", async () => {
+      if (!current()) { resolve(); return; }
+      try {
+        await minioMergeVideo(run.filename, run.uploadId, categoryIds.join(","),
+          item.file.name, "mp4", item.file.size, item.video?.duration || 0, item.video?.poster || "");
+        item.upload.progress = 100;
+        item.upload.status = 7;
+        refresh();
+        resolve();
+      } catch (error) {
+        fail(error);
+      }
+    });
+    (async () => {
+      item.upload.status = 3;
+      refresh();
+      if (!item.video) item.video = await parseVideo(item.file);
+      if (!current()) { resolve(); return; }
+      if (!run.uploadId) {
+        const data = await getMinioUploadId();
+        run.uploadId = data.upload_id;
+        run.filename = data.filename;
+      }
+      if (!current()) { resolve(); return; }
+      run.isStop = false;
+      run.uploadStatus = 0;
+      run.start();
+    })().catch(fail);
+  });
+
+  const queueFile = (item: FileItem) => {
+    if (item.upload.status === 3 || pendingFiles.current.includes(item)) return;
+    item.upload.status = 0;
+    item.upload.remark = "";
+    pendingFiles.current.push(item);
+    setFileList([...localFileList.current]);
+    processQueue();
+  };
+
   const uploadProps = {
     multiple: true,
-    beforeUpload: async (file: File, fileList: any) => {
-      if (file.size > 2 * 1024 * 1024 * 1024) {
-        message.error(`${file.name} 大小超过2G`);
+    beforeUpload: (file: File, selectedFiles: File[]) => {
+      const error = videoUploadError(file, selectedFiles.length);
+      if (error) {
+        message.error({ content: error, key: selectedFiles.length > 100 ? "video-upload-count" : file.name });
         return Upload.LIST_IGNORE;
       }
-      if (fileList.length > 10) {
-        message.config({ maxCount: 1 });
-        message.error("单次最多上传10个视频");
-        return Upload.LIST_IGNORE;
-      } else {
-        message.config({ maxCount: 10 });
-      }
-      if (file.type === "video/mp4") {
-        // 视频封面解析 || 视频时长解析
-        let videoInfo = await parseVideo(file);
-        // 添加到本地待上传
-        let data = await getMinioUploadId();
-        let run = new UploadChunk(file, data["upload_id"], data["filename"]);
-        let item: FileItem = {
-          id: generateUUID(),
-          file: file,
-          upload: {
-            handler: run,
-            progress: 0,
-            status: 0,
-            remark: "",
-          },
-          video: {
-            duration: videoInfo.duration,
-            poster: videoInfo.poster,
-          },
-        };
-        item.upload.handler.on("success", () => {
-          minioMergeVideo(
-            data["filename"],
-            data["upload_id"],
-            categoryIds.join(","),
-            item.file.name,
-            "mp4",
-            item.file.size,
-            item.video?.duration || 0,
-            item.video?.poster || ""
-          ).then(() => {
-            item.upload.progress = 100;
-            item.upload.status = item.upload.handler.getUploadStatus();
-            setFileList([...localFileList.current]);
-          });
-        });
-        item.upload.handler.on("progress", (p: number) => {
-          item.upload.status = item.upload.handler.getUploadStatus();
-          item.upload.progress = p >= 100 ? 99 : p;
-          setFileList([...localFileList.current]);
-        });
-        item.upload.handler.on("error", (msg: string) => {
-          item.upload.status = item.upload.handler.getUploadStatus();
-          item.upload.remark = msg;
-          setFileList([...localFileList.current]);
-        });
-        item.upload.handler.start();
-        // 先插入到ref
-        localFileList.current.push(item);
-        // 再更新list
-        setFileList([...localFileList.current]);
-      } else {
-        message.error(`${file.name} 并不是 mp4 视频文件`);
-      }
+      const item: FileItem = {
+        id: generateUUID(), file,
+        upload: { handler: new UploadChunk(file, "", ""), progress: 0, status: 0, remark: "" },
+      };
+      localFileList.current.push(item);
+      queueFile(item);
       return Upload.LIST_IGNORE;
     },
   };
 
   const closeWin = () => {
+    generation.current++;
+    pendingFiles.current = [];
+    activeUploads.current = 0;
     if (fileList.length > 0) {
       fileList.forEach((item) => {
         if (item.upload.status !== 5 && item.upload.status !== 7) {
@@ -186,7 +208,7 @@ export const UploadVideoFloatButton = () => {
                   </p>
                   <p className="ant-upload-text">请将视频拖拽到此处上传</p>
                   <p className="ant-upload-hint">
-                    支持一次上传多个 / 支持2G以内的mp4文件
+                    单次最多上传100个视频 / 单个最大10GB / 同时上传10个 / 支持mp4格式
                   </p>
                 </Dragger>
               </Col>
@@ -241,7 +263,7 @@ export const UploadVideoFloatButton = () => {
                                 size="small"
                                 className="b-n-link c-red"
                                 onClick={() => {
-                                  record.upload.handler.retry();
+                                  queueFile(record);
                                 }}
                               >
                                 失败.重试

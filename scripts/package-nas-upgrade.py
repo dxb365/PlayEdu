@@ -22,7 +22,7 @@ def add_file(archive, name, payload):
     archive.addfile(info, io.BytesIO(payload))
 
 
-for tag in ('playedu-teaching-api:hours-v1', 'playedu-teaching-web:hours-v1'):
+for tag in ('playedu-teaching-api:uploads-v1', 'playedu-teaching-web:uploads-v1'):
     with tempfile.TemporaryFile() as saved:
         subprocess.run(['docker', 'save', tag], stdout=saved, check=True)
         saved.seek(0)

@@ -4,13 +4,15 @@
 
 ## 更新已有群晖项目
 
-1. 在 Container Manager 的映像页，导入 playedu-teaching-api-hours-v1.tar.gz 和 playedu-teaching-web-hours-v1.tar.gz。导入后确认两项镜像均有 hours-v1 标签。
+1. 在 Container Manager 的映像页，导入 playedu-teaching-api-uploads-v1.tar.gz 和 playedu-teaching-web-uploads-v1.tar.gz。导入后确认两项镜像均有 uploads-v1 标签。
 2. 备份原 playedu-teaching 项目的 YAML，并在项目停止后备份数据库。
-3. 在原项目 YAML 中，只将 API 镜像值改为 playedu-teaching-api:hours-v1，将 web 镜像值改为 playedu-teaching-web:hours-v1，然后保存、构建并启动。
+3. 在原项目 YAML 中，只将 API 镜像值改为 playedu-teaching-api:uploads-v1，将 web 镜像值改为 playedu-teaching-web:uploads-v1，然后保存、构建并启动。
 4. 原项目中已经配置的 HTTPS 9900、端口、目录挂载、证书和自动续期设置继续使用原值。若已部署外网管理入口，更新时请使用第 3 步的两行镜像替换方式。
 5. 刷新管理后台。网页使用 Ctrl+F5，安卓 App 重新打开。
 
 ## 批量操作
+
+视频上传支持单次选择最多100个MP4，单个文件最大10GB（10 × 1024³字节），同时处理10个视频，其余等待。上传使用5MB分片；合并时会读取所有分片分页。解析失败或上传失败的文件可重试，不阻塞后续文件。
 
 进入资源管理的视频列表，点击批量操作并勾选视频。顶部显示已选数量和四个批量按钮，每次最多 200 个，翻页会保留选择。
 

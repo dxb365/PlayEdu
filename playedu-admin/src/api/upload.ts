@@ -27,14 +27,19 @@ export function minioMergeVideo(
   duration: number,
   poster: string
 ) {
-  return client.post("/backend/v1/upload/minio/merge-file", {
-    filename,
-    upload_id: uploadId,
-    original_filename: originalFilename,
-    category_ids: categoryIds,
-    size,
-    duration,
-    extension,
-    poster,
+  return client.request({
+    method: "POST",
+    url: "/backend/v1/upload/minio/merge-file",
+    timeout: 300000,
+    data: {
+      filename,
+      upload_id: uploadId,
+      original_filename: originalFilename,
+      category_ids: categoryIds,
+      size,
+      duration,
+      extension,
+      poster,
+    },
   });
 }

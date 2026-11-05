@@ -1,7 +1,7 @@
 name: Build teaching site for Synology
 on:
   push:
-    branches: [main, teaching-synology, teaching-auto-tls, nas-video-library, bulk-video-controls, course-hour-ordering]
+    branches: [main, teaching-synology, teaching-auto-tls, nas-video-library, bulk-video-controls, course-hour-ordering, video-upload-limits]
   pull_request:
   workflow_dispatch:
 concurrency:
@@ -54,6 +54,7 @@ jobs:
           npx --yes pnpm@9.15.9 --dir playedu-h5 install --frozen-lockfile
           npx --yes pnpm@9.15.9 --dir playedu-admin install --frozen-lockfile
           node scripts/test-playback.mjs
+          node scripts/test-video-upload.mjs
           npx --yes pnpm@8.15.9 --dir playedu-pc build
           npx --yes pnpm@9.15.9 --dir playedu-h5 build
           npx --yes pnpm@9.15.9 --dir playedu-admin build
@@ -72,8 +73,8 @@ jobs:
         run: |
           docker build -f deploy/synology/Dockerfile --target api -t playedu-teaching-api:local .
           docker build -f deploy/synology/Dockerfile --target web -t playedu-teaching-web:local .
-          docker tag playedu-teaching-api:local playedu-teaching-api:hours-v1
-          docker tag playedu-teaching-web:local playedu-teaching-web:hours-v1
+          docker tag playedu-teaching-api:local playedu-teaching-api:uploads-v1
+          docker tag playedu-teaching-web:local playedu-teaching-web:uploads-v1
           docker pull mysql:8.4
           docker pull chrislusf/seaweedfs:4.51
       - name: Verify container startup, TLS and private video storage
