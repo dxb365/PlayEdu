@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.AfterEach;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.util.ReflectionTestUtils;
 import xyz.playedu.api.controller.frontend.HourController;
 import xyz.playedu.api.request.frontend.CourseHourRecordRequest;
@@ -21,7 +22,7 @@ class SequentialHourAccessTest {
         FCtx.remove();
     }
 
-    @Test void lockedHoursCannotReadPlayOrWriteProgressThroughDirectRequests() throws Exception {
+    @Test void lockedHoursCannotReadPlayDownloadSubtitlesOrWriteProgressThroughDirectRequests() throws Exception {
         FCtx.setId(7);
         HourController controller = new HourController();
         SequentialLearningService sequence = mock(SequentialLearningService.class);
@@ -34,11 +35,13 @@ class SequentialHourAccessTest {
         doThrow(new ServiceException("locked")).when(sequence).requireUnlocked(any(), eq(9), eq(2));
         assertThrows(ServiceException.class, () -> controller.detail(9, 2));
         assertThrows(ServiceException.class, () -> controller.play(9, 2));
+        assertThrows(ServiceException.class, () -> controller.subtitle(
+                9, 2, "0".repeat(64), "main", new MockHttpServletResponse()));
         CourseHourRecordRequest request = new CourseHourRecordRequest();
         request.setDuration(20);
         assertThrows(ServiceException.class, () -> controller.record(9, 2, request));
         assertThrows(ServiceException.class, () -> controller.ping(9, 2));
-        verify(sequence, times(4)).requireUnlocked(any(), eq(9), eq(2));
+        verify(sequence, times(5)).requireUnlocked(any(), eq(9), eq(2));
         verifyNoInteractions(resources);
     }
 }

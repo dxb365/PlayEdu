@@ -272,13 +272,26 @@ try {
     email: 'nas-fixture@example.com', password: 'ci-only-learner-password',
   }, '');
   const learnerToken = login.token;
+  const firstPath = '/api/v1/course/' + course.id + '/hour/' + hour.id;
   const nextPath = '/api/v1/course/' + course.id + '/hour/' + nextHour.id;
-  await api(nextPath + '/play', undefined, learnerToken);
+  const firstTracks = (await api(firstPath + '/play', undefined, learnerToken)).subtitle_tracks;
+  const nextTracks = (await api(nextPath + '/play', undefined, learnerToken)).subtitle_tracks;
+  assert.equal(firstTracks.length, 4);
+  assert.equal(nextTracks.length, 1);
+  const englishText = firstTracks.find(track => track.format === 'vtt' && track.language.startsWith('en'));
+  const englishBitmap = firstTracks.find(track => track.format === 'vobsub' && track.language.startsWith('en'));
+  const chineseBitmap = firstTracks.find(track => track.format === 'vobsub' && track.language.startsWith('zh'));
+  assert(englishText && englishBitmap?.data_url && chineseBitmap?.data_url);
+  for (const url of [englishText.url, englishBitmap.data_url]) {
+    const anonymous = await adminContext.request.get('http://127.0.0.1:9900/api' + url);
+    assert.equal(anonymous.status(), 401);
+  }
   await api('/backend/v1/app-config', { data: { 'player.sequential_learning': '1' } }, fixture.adminToken, 'PUT');
   const initiallyLocked = await api('/api/v1/course/' + course.id, undefined, learnerToken);
   assert.deepEqual(initiallyLocked.locked_hour_ids, [nextHour.id]);
   await denied(nextPath, undefined, learnerToken);
   await denied(nextPath + '/play', undefined, learnerToken);
+  await denied(nextTracks[0].url, undefined, learnerToken);
   await denied(nextPath + '/record', {
     duration: 20, position: 20, clientId: 'ci-locked-forgery', sequence: 1,
   }, learnerToken);
@@ -310,6 +323,32 @@ try {
     await learner.goto(address);
     await learner.waitForFunction(() => window.player?.video?.readyState >= 2);
     if (previous > 0) await learner.waitForFunction(value => window.player.video.currentTime >= value, previous);
+    const subtitleMenu = learner.getByRole('combobox', { name: '字幕' });
+    const waitForSubtitle = text => learner.waitForFunction(value => {
+      const node = document.querySelector('.playedu-subtitle-text');
+      return node && !node.hidden && node.textContent.trim() === value;
+    }, text);
+    await subtitleMenu.waitFor();
+    assert.equal(await subtitleMenu.locator('option').count(), 5);
+    await waitForSubtitle('中文字幕测试');
+    await subtitleMenu.selectOption(englishText.id);
+    await waitForSubtitle('English subtitle test');
+    await subtitleMenu.selectOption(englishBitmap.id);
+    const startPosition = await learner.evaluate(() => window.player.video.currentTime);
+    await learner.evaluate(() => { window.player.video.currentTime = 1; });
+    const waitForBitmap = color => learner.waitForFunction(channel => {
+      const canvas = document.querySelector('canvas.playedu-subtitle-canvas');
+      if (!canvas || canvas.hidden || canvas.width !== 320 || canvas.height !== 180) return false;
+      const pixel = canvas.getContext('2d').getImageData(100, 142, 1, 1).data;
+      return pixel[channel] === 255 && pixel[1 - channel] === 0 && pixel[3] === 255;
+    }, color);
+    await waitForBitmap(0);
+    await subtitleMenu.selectOption(chineseBitmap.id);
+    await waitForBitmap(1);
+    await learner.screenshot({ path: 'nas-browser-results/' + (mobile ? 'tablet' : 'desktop') + '-vobsub.png', fullPage: true });
+    await subtitleMenu.selectOption('');
+    assert.equal(await subtitleMenu.inputValue(), '');
+    await learner.evaluate(value => { window.player.video.currentTime = value; }, startPosition);
     await learner.evaluate(async () => { window.player.video.muted = true; await window.player.video.play(); });
     await learner.waitForFunction(value => window.player.video.currentTime > value + 2, previous);
     await learner.evaluate(() => window.player.video.pause());
@@ -325,10 +364,11 @@ try {
     await learner.reload();
     await learner.waitForFunction(value => window.player?.video?.readyState >= 2
       && window.player.video.currentTime >= value, previous);
+    await subtitleMenu.waitFor();
+    assert.equal(await subtitleMenu.inputValue(), '');
     await learner.screenshot({ path: 'nas-browser-results/' + (mobile ? 'android-layout' : 'desktop') + '-resume.png', fullPage: true });
     await learnerContext.close();
   }
-  const firstPath = '/api/v1/course/' + course.id + '/hour/' + hour.id;
   const savedBeforeMove = await api(firstPath, undefined, learnerToken);
   await bulk('move', [fixture.resourceId], [categoryA]);
   const savedAfterMove = await api(firstPath, undefined, learnerToken);
@@ -345,6 +385,7 @@ try {
   await api('/backend/v1/app-config', { data: { 'player.sequential_learning': '0' } }, fixture.adminToken, 'PUT');
   await api('/backend/v1/course/' + course.id, undefined, fixture.adminToken, 'DELETE');
   assert.deepEqual(errors, []);
+  console.log('Subtitle checks passed: NAS sidecar discovery, unauthorized and locked-hour access, Chinese SRT, English VTT, VobSub bitmap, off preference, and desktop/tablet rendering.');
   console.log('Browser checks passed: 100 real video uploads with ten active tasks, 101-file and over-10GiB rejection, object integrity, 200-item NAS selection, bulk toolbar/copy/move/categories/deletion, original MP4 preview/seek/pause, desktop and Android resume, ordered learning enforcement/unlock, completion.');
 } catch (error) {
   let index = 0;

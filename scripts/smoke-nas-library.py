@@ -62,11 +62,22 @@ with tempfile.TemporaryDirectory(prefix='playedu-nas-smoke-') as folder:
     subprocess.run(compose + ['config', '--quiet'], check=True)
     try:
         subprocess.run(['docker', 'run', '--rm', '--entrypoint', '/usr/bin/ffmpeg',
-            '-v', str(library) + ':/fixtures', 'playedu-teaching-api:uploads-v1', '-v', 'error',
+            '-v', str(library) + ':/fixtures', 'playedu-teaching-api:subtitles-v1', '-v', 'error',
             '-f', 'lavfi', '-i', 'testsrc2=size=320x180:rate=12', '-t', '20',
             '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
             '/fixtures/章节/第一课.mp4'], check=True)
         shutil.copy(library / '章节/第一课.mp4', library / '界面测试.mp4')
+        (library / '章节/第一课.zh-CN.srt').write_text(
+            '1\n00:00:00,000 --> 00:00:19,999\n中文字幕测试\n', encoding='utf-8')
+        (library / '章节/第一课.en.vtt').write_text(
+            'WEBVTT\n\n00:00:00.000 --> 00:00:19.999\nEnglish subtitle test\n', encoding='utf-8')
+        (library / '界面测试.zh-CN.srt').write_text(
+            '1\n00:00:00,000 --> 00:00:19,999\n第二课字幕\n', encoding='utf-8')
+        subprocess.run(['node', '--input-type=module', '-e',
+            "import fs from 'node:fs'; import {createVobSubFixture} from './scripts/vobsub-fixture.mjs'; "
+            "const {indexText,sub}=createVobSubFixture(); fs.writeFileSync(process.argv[1]+'.idx',indexText); "
+            "fs.writeFileSync(process.argv[1]+'.sub',sub);", str(library / '章节/第一课')],
+            cwd=root, check=True)
         (library / '损坏视频.mp4').write_bytes(b'invalid video fixture')
         (library / '批量选择').mkdir()
         for index in range(201):
@@ -74,7 +85,7 @@ with tempfile.TemporaryDirectory(prefix='playedu-nas-smoke-') as folder:
             shutil.copyfile(library / '章节/第一课.mp4', destination)
             os.utime(destination, (1700000000 + 200 - index, 1700000000 + 200 - index))
         sources = {str(p.relative_to(library)): hashlib.sha256(p.read_bytes()).hexdigest()
-                   for p in library.rglob('*.mp4') if not p.is_symlink()}
+                   for p in library.rglob('*') if p.is_file() and not p.is_symlink()}
         subprocess.run(compose + ['up', '-d'], check=True)
         for attempt in range(100):
             try:
@@ -167,7 +178,7 @@ with tempfile.TemporaryDirectory(prefix='playedu-nas-smoke-') as folder:
         api('/backend/v1/resource/' + str(entry['id']), admin, method='DELETE')
         assert request(url)[0] == 404
         assert sources == {str(p.relative_to(library)): hashlib.sha256(p.read_bytes()).hexdigest()
-            for p in library.rglob('*.mp4') if not p.is_symlink()}
+            for p in library.rglob('*') if p.is_file() and not p.is_symlink()}
         print('NAS checks passed: read-only source, Unicode browse/import, duplicate identity, signing, ranges, CORS, browser playback/resume, reference-only deletion.')
     except Exception:
         subprocess.run(compose + ['logs', '--tail', '40'], check=False)

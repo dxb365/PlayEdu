@@ -15,18 +15,26 @@
  */
 package xyz.playedu.api.controller.frontend;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.util.StreamUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import xyz.playedu.api.event.UserCourseHourFinishedEvent;
 import xyz.playedu.api.event.UserLearnCourseUpdateEvent;
 import xyz.playedu.api.request.frontend.CourseHourRecordRequest;
 import xyz.playedu.common.context.FCtx;
+import xyz.playedu.common.exception.NotFoundException;
 import xyz.playedu.common.types.JsonResponse;
 import xyz.playedu.common.util.MemoryDistributedLock;
 import xyz.playedu.course.caches.UserCanSeeCourseCache;
@@ -38,6 +46,7 @@ import xyz.playedu.course.service.CourseHourService;
 import xyz.playedu.course.service.CourseService;
 import xyz.playedu.course.service.UserCourseHourRecordService;
 import xyz.playedu.resource.domain.Resource;
+import xyz.playedu.resource.media.NasSubtitleLibrary;
 import xyz.playedu.resource.service.ResourceService;
 
 /**
@@ -58,6 +67,8 @@ public class HourController {
     @Autowired private CourseHourService hourService;
 
     @Autowired private ResourceService resourceService;
+
+    @Autowired private NasSubtitleLibrary subtitles;
 
     @Autowired private UserCourseHourRecordService userCourseHourRecordService;
 
@@ -100,10 +111,7 @@ public class HourController {
     public JsonResponse play(
             @PathVariable(name = "courseId") Integer courseId,
             @PathVariable(name = "id") Integer id) {
-        userCanSeeCourseCache.check(FCtx.getId(), courseId, true);
-        CourseHour hour = hourService.findOrFail(id, courseId);
-        sequence.requireUnlocked(FCtx.getId(), courseId, id);
-        Resource resource = resourceService.findOrFail(hour.getRid());
+        Resource resource = playableResource(courseId, id);
 
         HashMap<String, Object> data = new HashMap<>();
         // 获取资源签名url
@@ -117,8 +125,61 @@ public class HourController {
                         }));
         data.put("extension", resource.getExtension()); // 视频格式
         data.put("duration", resourceService.duration(resource.getId())); // 视频时长
+        data.put("subtitle_tracks", subtitles.discover(resource).stream()
+                .map(track -> SubtitleTrack.forHour(courseId, id, track)).toList());
 
         return JsonResponse.data(data);
+    }
+
+    @GetMapping("/{id}/subtitle/{trackId}/{part}")
+    public void subtitle(@PathVariable Integer courseId, @PathVariable Integer id,
+            @PathVariable String trackId, @PathVariable String part, HttpServletResponse response)
+            throws IOException, NotFoundException {
+        Resource resource = playableResource(courseId, id);
+        if (trackId.length() != 64 || (!"main".equals(part) && !"sub".equals(part))) {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+        boolean binary = "sub".equals(part);
+        NasSubtitleLibrary.Track track = subtitles.discover(resource).stream()
+                .filter(item -> item.id().equals(trackId)).findFirst().orElse(null);
+        if (track == null || (binary && track.dataPath() == null)) {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+
+        NasSubtitleLibrary.SubtitleFile file;
+        try {
+            file = subtitles.open(track, binary);
+        } catch (IOException e) {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+        try (file) {
+            response.setContentType(MediaType.APPLICATION_OCTET_STREAM_VALUE);
+            response.setContentLengthLong(file.length());
+            response.setHeader(HttpHeaders.CACHE_CONTROL, "private, no-store");
+            response.setHeader("X-Content-Type-Options", "nosniff");
+            StreamUtils.copyRange(file.input(), response.getOutputStream(), 0, file.length() - 1);
+        }
+    }
+
+    private Resource playableResource(Integer courseId, Integer id) throws NotFoundException {
+        userCanSeeCourseCache.check(FCtx.getId(), courseId, true);
+        CourseHour hour = hourService.findOrFail(id, courseId);
+        sequence.requireUnlocked(FCtx.getId(), courseId, id);
+        return resourceService.findOrFail(hour.getRid());
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private record SubtitleTrack(String id, String label, String language, String format, String url,
+            @JsonProperty("data_url") String dataUrl,
+            @JsonProperty("stream_index") Integer streamIndex) {
+        private static SubtitleTrack forHour(Integer courseId, Integer hourId, NasSubtitleLibrary.Track track) {
+            String base = "/api/v1/course/" + courseId + "/hour/" + hourId + "/subtitle/" + track.id();
+            return new SubtitleTrack(track.id(), track.label(), track.language(), track.format(),
+                    base + "/main", track.dataPath() == null ? null : base + "/sub", track.streamIndex());
+        }
     }
 
     @PostMapping("/{id}/record")
