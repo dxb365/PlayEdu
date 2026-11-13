@@ -72,6 +72,8 @@ class NasSubtitleLibraryTest {
                 timestamp: 00:00:01:000, filepos: 000000000
                 id: zh, index: 0
                 timestamp: 00:00:02:000, filepos: 000000800
+                id: -- , index: 7
+                timestamp: 00:00:03:000, filepos: 000001000
                 id: en, index: 35
                 """);
         Files.write(directory.resolve("第一集.SUB"), new byte[] {1, 2, 3});
@@ -81,10 +83,10 @@ class NasSubtitleLibraryTest {
 
         NasSubtitleLibrary library = library();
         var tracks = library.discover(video("第一集.mp4"));
-        assertEquals(List.of("zh", "en"), tracks.stream().map(
+        assertEquals(List.of("zh", "en", "und"), tracks.stream().map(
                 NasSubtitleLibrary.Track::language).toList());
-        assertEquals(List.of(0, 2), tracks.stream().map(NasSubtitleLibrary.Track::streamIndex).toList());
-        assertEquals(List.of("vobsub", "vobsub"), tracks.stream().map(
+        assertEquals(List.of(0, 2, 7), tracks.stream().map(NasSubtitleLibrary.Track::streamIndex).toList());
+        assertEquals(List.of("vobsub", "vobsub", "vobsub"), tracks.stream().map(
                 NasSubtitleLibrary.Track::format).toList());
         assertNotEquals(tracks.get(0).id(), tracks.get(1).id());
         assertEquals(tracks.get(0).dataPath(), tracks.get(1).dataPath());

@@ -37,7 +37,7 @@ public class NasSubtitleLibrary {
     private static final int MAX_FILES = 128;
     private static final int MAX_DIRECTORY_ENTRIES = 20_000;
     private static final Pattern IDX_STREAM = Pattern.compile(
-            "id:\\s*([a-z]{2,3}(?:[-_][a-z0-9]{2,8})?),\\s*index:\\s*(\\d{1,2})",
+            "id:\\s*([a-z]{2,3}(?:[-_][a-z0-9]{2,8})?|--)\\s*,\\s*index:\\s*(\\d{1,2})",
             Pattern.CASE_INSENSITIVE);
     private static final Map<String, String> ISO_LANGUAGES = isoLanguages();
     private static final Map<String, String> LANGUAGE_ALIASES = Map.ofEntries(
