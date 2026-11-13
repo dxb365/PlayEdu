@@ -1,5 +1,6 @@
 // Teaching customization (2026-11-01): automatic resume and independent playback controls.
 import { bindLearningPlayer } from "../../utils/playback";
+import { bindPlayerSubtitles, SubtitleTrack } from "../../utils/player-subtitles";
 import { useEffect, useRef, useState } from "react";
 import styles from "./video.module.scss";
 import { useParams, useNavigate } from "react-router-dom";
@@ -105,13 +106,13 @@ const CoursePalyPage = () => {
             Number(window.location.pathname.split('/')[4]) !== data.hourId) return;
         setResourceUrl(res.data.resource_url[rid]);
         setPlayUrl(res.data.resource_url[rid]);
-        initDPlayer(res.data.resource_url[rid], 0, data);
+        initDPlayer(res.data.resource_url[rid], 0, data, res.data.subtitle_tracks);
         savePlayId(String(params.courseId) + "-" + String(params.hourId));
       }
     );
   };
 
-  const initDPlayer = (playUrl: string, isTrySee: number, params: any) => {
+  const initDPlayer = (playUrl: string, isTrySee: number, params: any, subtitles: SubtitleTrack[] = []) => {
     const banDrag = !!systemConfig.playerIsDisabledDrag;
     window.player = new window.DPlayer({
       container: document.getElementById("meedu-player-container"),
@@ -144,6 +145,7 @@ const CoursePalyPage = () => {
       allowSpeed: !systemConfig.playerIsDisabledSpeed,
       notify: (text) => message.warning(text),
     });
+    bindPlayerSubtitles(window.player, subtitles, (text) => message.warning(text));
     window.player.on('ended', () => {
       setPlayendedStatus(true);
       setPlayingTime(0);
@@ -187,6 +189,10 @@ const CoursePalyPage = () => {
   };
 
   const exitFullscreen = () => {
+    if (window.player?.fullScreen?.isFullScreen("web")) {
+      window.player.fullScreen.cancel("web");
+      return;
+    }
     let de: any;
     de = document;
     if (de.fullscreenElement !== null) {

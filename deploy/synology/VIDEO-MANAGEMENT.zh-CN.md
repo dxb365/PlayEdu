@@ -4,9 +4,9 @@
 
 ## 更新已有群晖项目
 
-1. 在 Container Manager 的映像页，导入 playedu-teaching-api-uploads-v1.tar.gz 和 playedu-teaching-web-uploads-v1.tar.gz。导入后确认两项镜像均有 uploads-v1 标签。
+1. 在 Container Manager 的映像页，导入 playedu-teaching-api-subtitles-v1.tar.gz 和 playedu-teaching-web-subtitles-v1.tar.gz。导入后确认两项镜像均有 subtitles-v1 标签。
 2. 备份原 playedu-teaching 项目的 YAML，并在项目停止后备份数据库。
-3. 在原项目 YAML 中，只将 API 镜像值改为 playedu-teaching-api:uploads-v1，将 web 镜像值改为 playedu-teaching-web:uploads-v1，然后保存、构建并启动。
+3. 在原项目 YAML 中，只将 API 镜像值改为 playedu-teaching-api:subtitles-v1，将 web 镜像值改为 playedu-teaching-web:subtitles-v1，然后保存、构建并启动。
 4. 原项目中已经配置的 HTTPS 9900、端口、目录挂载、证书和自动续期设置继续使用原值。若已部署外网管理入口，更新时请使用第 3 步的两行镜像替换方式。
 5. 刷新管理后台。网页使用 Ctrl+F5，安卓 App 重新打开。
 

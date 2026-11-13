@@ -5,7 +5,7 @@
 ## 升级已有站点
 
 1. 在 Container Manager 停止教学项目。先保留原来的 YAML 配置，并备份教学数据库。
-2. 在“映像 → 操作 → 从文件添加”分别导入 `playedu-teaching-api-uploads-v1.tar.gz` 和 `playedu-teaching-web-uploads-v1.tar.gz`。完成后应显示 `playedu-teaching-api`、`playedu-teaching-web`，两项标签都是 `uploads-v1`。原来的 `local` 标签可以保留。
+2. 在“映像 → 操作 → 从文件添加”分别导入 `playedu-teaching-api-subtitles-v1.tar.gz` 和 `playedu-teaching-web-subtitles-v1.tar.gz`。完成后应显示 `playedu-teaching-api`、`playedu-teaching-web`，两项标签都是 `subtitles-v1`。原来的 `local` 标签可以保留。
 3. 本版本提供完整的 `compose.nas.yaml`。通用配置需要在群晖项目原有的 `.env` 文件中增加一行 `NAS_VIDEO_DIR=/volume1/课程视频`，将右侧改为实际目录。使用已填好目录的个人配置时，无需增加这一行。
 4. 在原项目的“详情 → YAML 配置”中用 NAS 版本的完整内容替换并保存，再启动原项目。项目目录、项目名和原有数据目录保持原值。不要创建第二个空白教学项目，也不要删除 `mysql`、`storage`、`certs`、`acme-state`、`acme-config` 或 `.env`。
 5. 本配置保留 ZeroSSL 自动续期。若原站点使用其他证书机构，请保留原来的 `TEACHING_ACME_SERVER` 和 `TEACHING_ACME_HOME` 两项设置。
@@ -13,6 +13,12 @@
 7. 先选一个 H.264/AAC 编码的 MP4，添加后点击“预览”。然后在“课程中心 → 线上课”创建课程并选择该视频，给测试学员分配课程，验证播放、暂停、退出后继续学习以及已完成状态。
 
 学员地址、管理后台地址和现有安卓应用继续使用原入口。网站的拖动、倍速和自动续播设置沿用现有后台选项。
+
+## 原目录字幕
+
+将字幕与视频放在群晖同一个文件夹，文件名使用相同的片名。若视频是 `第一课.mp4`，中文字幕可命名为 `第一课.zh-CN.srt`，英文字幕可命名为 `第一课.en.vtt`。`.idx` 和 `.sub` 要成对保留，例如 `第一课.idx` 与 `第一课.sub`。其中有多条语言轨时，播放器会分别列出。
+
+打开学员播放页会自动查找字幕。首次播放优先选择中文，其次英文。用播放器的“字幕”菜单切换语言或关闭。放好新字幕后重新打开课时即可识别，已经引用的 NAS 视频无需重新导入。
 
 ## 使用说明
 
